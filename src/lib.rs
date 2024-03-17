@@ -1,6 +1,7 @@
 use std::fmt::format;
 use std::io::Read;
 use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::sync::{Arc, Mutex};
 
 use router::Router;
 
@@ -33,17 +34,19 @@ impl HttpServer {
         let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], self.port)))?;
         let pool = thread_pool::ThreadPool::build(self.threads)?;
 
+        let arc_router = Arc::new(Mutex::new(router));
         for stream in listener.incoming() {
             let stream = stream?;
-            handle_connection(stream, &router);
-            // pool.execute( | | {
-            // })?;
+            let router_clone = Arc::clone(&arc_router);
+            pool.execute( move | | {
+                handle_connection(stream, router_clone);
+            })?;
         }
         Ok(())
     }
 }
 
-fn handle_connection(mut stream: TcpStream, router: &Router){
+fn handle_connection(mut stream: TcpStream, router: Arc<Mutex<Router>>){
     let mut buffer = [0; 1024];
     stream.read(&mut buffer).unwrap();
 
@@ -56,5 +59,5 @@ fn handle_connection(mut stream: TcpStream, router: &Router){
 
     let body = if http_parts.len() > 1 { http_parts[1] } else { "" };
 
-    router.route(path, method, body).unwrap();
+    router.lock().unwrap().route(path, method, body).unwrap();
 }
