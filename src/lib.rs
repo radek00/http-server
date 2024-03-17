@@ -1,5 +1,4 @@
-use std::fmt::format;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 
@@ -59,5 +58,13 @@ fn handle_connection(mut stream: TcpStream, router: Arc<Mutex<Router>>){
 
     let body = if http_parts.len() > 1 { http_parts[1] } else { "" };
 
-    router.lock().unwrap().route(path, method, body).unwrap();
+    let response = router.lock().unwrap().route(path, method, body).unwrap();
+
+    let response = format!(
+        "HTTP/1.1 {} \r\n\r\n{}",
+        response.status_code,
+        response.body
+    );
+
+    stream.write_all(response.as_bytes()).unwrap();
 }
