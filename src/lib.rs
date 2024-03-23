@@ -56,7 +56,7 @@ fn handle_connection(mut stream: TcpStream, router: Arc<Mutex<Router>>){
     let http_method: Vec<&str> = request_lines[0].split_whitespace().collect();
     let (method, path, _version) = (http_method[0], http_method[1], http_method[2]);
 
-    let body = if http_parts.len() > 1 { http_parts[1] } else { "" };
+    let body = if http_parts.len() > 1 { Some(http_parts[1]) } else { None };
 
     let response = router.lock().unwrap().route(path, method, body).unwrap();
 
