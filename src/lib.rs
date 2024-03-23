@@ -61,8 +61,16 @@ fn handle_connection(mut stream: TcpStream, router: Arc<Mutex<Router>>){
     let response = router.lock().unwrap().route(path, method, body).unwrap();
 
     let response = format!(
-        "HTTP/1.1 {} \r\n\r\n{}",
+        "HTTP/1.1 {}\r\n\
+        Content-Type: {}\r\n\
+        Content-Length: {}\r\n\
+        Connection: keep-alive\r\n\
+        Server: RustHttpServer/1.0\r\n\
+        \r\n\
+        {}",
         response.status_code,
+        response.content_type,
+        response.body.len(),
         response.body
     );
 
