@@ -1,4 +1,5 @@
 use std::{collections::HashMap, fmt::Error};
+use regex::Regex;
 
 pub struct HttpResponse {
     pub content_type: String,
@@ -16,41 +17,56 @@ impl HttpResponse {
     }
 }
 
-type Handler = Box<dyn Fn(&str) -> Result<HttpResponse, Error> + Send + Sync>;
+type Handler = Box<dyn Fn(Option<&str>, Option<&str>) -> Result<HttpResponse, Error> + Send + Sync>;
 
+
+pub struct Route {
+    pattern: Regex,
+    handler: Handler,
+}
 pub struct Router {
-    routes: HashMap<String, Handler>,
+    routes: Vec<Route>,
 }
 
 impl Router {
     pub fn new() -> Self {
         Router {
-            routes: HashMap::new(),
+            routes: Vec::new(),
         }
     }
 
     pub fn add_route<F>(&mut self, path: &str, method: &str, handler: F)
     where
-        F: Fn(&str) -> Result<HttpResponse, Error> + Send + Sync + 'static,
+        F: Fn(Option<&str>, Option<&str>) -> Result<HttpResponse, Error> + Send + Sync + 'static,
     {
-        self.routes.insert(format!("{}{}", method, path), Box::new(handler));
+        //self.routes.insert(format!("{}{}", method, path), Box::new(handler));
+
+        let pattern = format!("^{}{}$", method, path.replace("{", "(?P<").replace("}", ">[^/]+)"));
+        let regex = Regex::new(&pattern).unwrap();
+        self.routes.push(Route { pattern: regex, handler: Box::new(handler) });
     }
 
-    pub fn route(&self, path: &str, method: &str, data: &str) -> Result<HttpResponse, Box<dyn std::error::Error>> {
-        match self.routes.get(&format!("{}{}", method, path)) {
-            Some(handler) => {
-                let response = handler(data)?;
-                println!("Response: {:?}", response.body);
-                Ok(response)
-            },
-            None => {
-                println!("No route found for path: {}", path);
-                Ok(HttpResponse::new(
-                    format!("No route found for path: {}", path),
-                    None,
-                    404,
-                ))
-            },
+    pub fn route(&self, path: &str, method: &str, data: Option<&str>) -> Result<HttpResponse, Box<dyn std::error::Error>> {
+        let pattern = format!("{}{}", method, path);
+        for route in &self.routes {
+            let pattern_match = route.pattern.find(&pattern);
+
+            match pattern_match {
+                Some(pattern_match) => {
+                    let &param = pattern_match.as_str().split('/').collect::<Vec<&str>>().last().unwrap(); 
+                    let response = (route.handler)(data,  if param.is_empty() {None} else {Some(param)})?;
+
+                    return Ok(response);
+                }
+                None => continue,
+                
+            }
         }
+        println!("No route found for path: {}", path);
+        Ok(HttpResponse::new(
+            format!("No route found for path: {}", path),
+            None,
+            404,
+        ))
     }
 }
