@@ -1,14 +1,20 @@
-use std::{collections::HashMap, fmt::Error};
+use std::fmt::Error;
 use regex::Regex;
+use serde_json::json;
+
+pub enum Body {
+    Text(String),
+    Json(serde_json::Value),
+}
 
 pub struct HttpResponse {
     pub content_type: String,
-    pub body: String,
+    pub body: Body,
     pub status_code: u16,
 }
 
 impl HttpResponse {
-    pub fn new(body: String, content_type: Option<String>, status_code: u16) -> Self {
+    pub fn new(body: Body, content_type: Option<String>, status_code: u16) -> Self {
         HttpResponse {
             content_type: content_type.unwrap_or_else(|| "application/json".to_string()),
             body,
@@ -64,7 +70,7 @@ impl Router {
         }
         println!("No route found for path: {}", path);
         Ok(HttpResponse::new(
-            format!("No route found for path: {}", path),
+            Body::Json(json!({"message": "No route found for path {path}"})),
             None,
             404,
         ))
