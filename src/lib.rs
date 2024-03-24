@@ -1,8 +1,9 @@
 use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
+use serde_json::json;
 
-use router::{Body, Router};
+use router::{Body, HttpResponse, Router};
 
 mod thread_pool;
 pub mod router;
@@ -58,7 +59,12 @@ fn handle_connection(mut stream: TcpStream, router: Arc<Mutex<Router>>){
 
     let body = if http_parts.len() > 1 { Some(http_parts[1]) } else { None };
 
-    let response = router.lock().unwrap().route(path, method, body).unwrap();
+    let response = router.lock().unwrap().route(path, method, body).unwrap_or_else(| err| {
+        let error_message = json!({
+            "error": format!("{}", err)
+        });
+        HttpResponse::new(Body::Json(error_message), None, 500)
+    });
 
     let mut write_response = |body_string: &str| {
         let response = format!(

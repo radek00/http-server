@@ -65,7 +65,7 @@ impl Router {
                     .filter_map(|n| Some((n, pattern_match.name(n)?.as_str())))
                     .collect();
 
-                    if stripped_path[1].len() > 1 {
+                    if stripped_path.len() == 2 {
                         for param in stripped_path[1].split('&') {
                             let pair: Vec<&str> = param.split('=').collect();
                             if pair.len() == 2 {
