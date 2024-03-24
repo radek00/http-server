@@ -2,7 +2,7 @@ use std::io::{Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 
-use router::Router;
+use router::{Body, Router};
 
 mod thread_pool;
 pub mod router;
@@ -60,19 +60,31 @@ fn handle_connection(mut stream: TcpStream, router: Arc<Mutex<Router>>){
 
     let response = router.lock().unwrap().route(path, method, body).unwrap();
 
-    let response = format!(
-        "HTTP/1.1 {}\r\n\
-        Content-Type: {}\r\n\
-        Content-Length: {}\r\n\
-        Connection: keep-alive\r\n\
-        Server: RustHttpServer/1.0\r\n\
-        \r\n\
-        {}",
-        response.status_code,
-        response.content_type,
-        response.body.len(),
-        response.body
-    );
-
-    stream.write_all(response.as_bytes()).unwrap();
+    let mut write_response = |body_string: &str| {
+        let response = format!(
+            "HTTP/1.1 {}\r\n\
+            Content-Type: {}\r\n\
+            Content-Length: {}\r\n\
+            Connection: keep-alive\r\n\
+            Server: RustHttpServer/1.0\r\n\
+            \r\n\
+            {}",
+            response.status_code,
+            response.content_type,
+            body_string.len(),
+            body_string
+        );
+    
+        stream.write_all(response.as_bytes()).unwrap();
+    };
+    
+    match &response.body {
+        Body::Text(text) => {
+            write_response(text);
+        }
+        Body::Json(json) => {
+            let json_string = json.to_string();
+            write_response(&json_string);
+        }
+    }
 }
