@@ -1,10 +1,11 @@
-use std::fmt::Error;
+use std::{collections::HashMap, fmt::Error};
 use regex::Regex;
 use serde_json::json;
 
 pub enum Body {
     Text(String),
     Json(serde_json::Value),
+    // Add more variants here for other types you want to support
 }
 
 pub struct HttpResponse {
@@ -23,7 +24,7 @@ impl HttpResponse {
     }
 }
 
-type Handler = Box<dyn Fn(Option<&str>, Option<&str>) -> Result<HttpResponse, Error> + Send + Sync>;
+type Handler = Box<dyn Fn(Option<&str>, Option<&HashMap<&str, &str>>) -> Result<HttpResponse, Error> + Send + Sync>;
 
 
 pub struct Route {
@@ -43,24 +44,36 @@ impl Router {
 
     pub fn add_route<F>(&mut self, path: &str, method: &str, handler: F)
     where
-        F: Fn(Option<&str>, Option<&str>) -> Result<HttpResponse, Error> + Send + Sync + 'static,
+        F: Fn(Option<&str>, Option<&HashMap<&str, &str>>) -> Result<HttpResponse, Error> + Send + Sync + 'static,
     {
-        //self.routes.insert(format!("{}{}", method, path), Box::new(handler));
-
         let pattern = format!("^{}{}$", method, path.replace("{", "(?P<").replace("}", ">[^/]+)"));
         let regex = Regex::new(&pattern).unwrap();
         self.routes.push(Route { pattern: regex, handler: Box::new(handler) });
     }
 
     pub fn route(&self, path: &str, method: &str, data: Option<&str>) -> Result<HttpResponse, Box<dyn std::error::Error>> {
-        let pattern = format!("{}{}", method, path);
+        let stripped_path: Vec<&str> = path.split('?').collect();
+        let pattern = format!("{}{}", method, stripped_path[0]);
         for route in &self.routes {
-            let pattern_match = route.pattern.find(&pattern);
+            let pattern_match = route.pattern.captures(&pattern);
 
             match pattern_match {
                 Some(pattern_match) => {
-                    let &param = pattern_match.as_str().split('/').collect::<Vec<&str>>().last().unwrap(); 
-                    let response = (route.handler)(data,  if param.is_empty() {None} else {Some(param)})?;
+                    let mut param_dict: HashMap<&str, &str> = route.pattern
+                    .capture_names()
+                    .flatten()
+                    .filter_map(|n| Some((n, pattern_match.name(n)?.as_str())))
+                    .collect();
+
+                    if stripped_path[1].len() > 1 {
+                        for param in stripped_path[1].split('&') {
+                            let pair: Vec<&str> = param.split('=').collect();
+                            if pair.len() == 2 {
+                                param_dict.insert(pair[0], pair[1]);
+                            }
+                        }
+                    }
+                    let response = (route.handler)(data,  if param_dict.len() == 0 {None} else {Some(&param_dict)})?;
 
                     return Ok(response);
                 }
