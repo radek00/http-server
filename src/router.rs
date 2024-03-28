@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fmt::Error};
+use std::collections::HashMap;
 use regex::Regex;
 use serde_json::json;
 
@@ -24,7 +24,7 @@ impl HttpResponse {
     }
 }
 
-type Handler = Box<dyn Fn(Option<&str>, Option<&HashMap<&str, &str>>) -> Result<HttpResponse, Error> + Send + Sync>;
+type Handler = Box<dyn Fn(Option<&str>, Option<&HashMap<&str, &str>>) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>;
 
 
 pub struct Route {
@@ -44,7 +44,7 @@ impl Router {
 
     pub fn add_route<F>(&mut self, path: &str, method: &str, handler: F)
     where
-        F: Fn(Option<&str>, Option<&HashMap<&str, &str>>) -> Result<HttpResponse, Error> + Send + Sync + 'static,
+        F: Fn(Option<&str>, Option<&HashMap<&str, &str>>) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static,
     {
         let pattern = format!("^{}{}$", method, path.replace("{", "(?P<").replace("}", ">[^/]+)"));
         let regex = Regex::new(&pattern).unwrap();
@@ -83,7 +83,7 @@ impl Router {
         }
         println!("No route found for path: {}", path);
         Ok(HttpResponse::new(
-            Body::Json(json!({"message": "No route found for path {path}"})),
+            Body::Json(json!({"message": format!("No route found for path {}", path)})),
             None,
             404,
         ))
