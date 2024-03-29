@@ -1,4 +1,4 @@
-use std::io::{Read, Write};
+use std::io::{self, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use serde_json::json;
@@ -91,6 +91,20 @@ fn handle_connection(mut stream: TcpStream, router: Arc<Mutex<Router>>){
         Body::Json(json) => {
             let json_string = json.to_string();
             write_response(&json_string);
+        }
+        Body::File(file) => {
+            let headers = format!(
+                "HTTP/1.1 200 OK\r\n\
+                Content-Type: {}\r\n\
+                Connection: keep-alive\r\n\
+                Server: RustHttpServer/1.0\r\n\
+                \r\n", response.content_type
+            );
+
+            stream.write_all(headers.as_bytes()).unwrap();
+    
+            let mut reader = BufReader::new(file);
+            io::copy(&mut reader, &mut stream).unwrap();
         }
     }
 }
