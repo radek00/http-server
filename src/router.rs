@@ -1,10 +1,11 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, fs::File};
 use regex::Regex;
 use serde_json::json;
 
 pub enum Body {
     Text(String),
     Json(serde_json::Value),
+    File(File),
     // Add more variants here for other types you want to support
 }
 
