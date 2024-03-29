@@ -1,4 +1,4 @@
-use std::fs::{self};
+use std::fs::{self, File};
 
 use http_server::{router::{Body, HttpResponse, Router}, HttpServer};
 use serde::{Deserialize, Serialize};
@@ -40,9 +40,10 @@ fn main() {
         println!("Request to other path with data {}",data.unwrap());
         Ok(HttpResponse::new(Body::Text("Error occured".to_string()),Some(String::from("text/plain")), 500))
     });
-    router.add_route("/api/file/{name}", "GET", |data, params| {
-        println!("Request to file path with data {}, dynamic route {} and query param: {}",data.unwrap(), params.unwrap().get("name").unwrap(), params.unwrap().get("test").unwrap());
-        Ok(HttpResponse::new(Body::Text("File found".to_string()) ,Some(String::from("text/plain")), 200))
+    router.add_route("/api/files", "GET", |_, params| {
+        let file_name = params.unwrap().get("path").unwrap();
+        let file = File::open(file_name)?;
+        Ok(HttpResponse::new(Body::File(file), Some(mime_guess::from_path(file_name).first_or_octet_stream().to_string()), 200))
     
     });
 
