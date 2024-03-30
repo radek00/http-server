@@ -25,7 +25,7 @@ impl HttpResponse {
     }
 }
 
-type Handler = Box<dyn Fn(Option<&str>, Option<&HashMap<&str, &str>>) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>;
+type Handler = Box<dyn Fn(Option<&str>, HashMap<&str, &str>) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>;
 
 
 pub struct Route {
@@ -45,7 +45,7 @@ impl Router {
 
     pub fn add_route<F>(&mut self, path: &str, method: &str, handler: F)
     where
-        F: Fn(Option<&str>, Option<&HashMap<&str, &str>>) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static,
+        F: Fn(Option<&str>, HashMap<&str, &str>) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static,
     {
         let pattern = format!("^{}{}$", method, path.replace("{", "(?P<").replace("}", ">[^/]+)"));
         let regex = Regex::new(&pattern).unwrap();
@@ -74,7 +74,7 @@ impl Router {
                             }
                         }
                     }
-                    let response = (route.handler)(data,  if param_dict.len() == 0 {None} else {Some(&param_dict)})?;
+                    let response = (route.handler)(data,  param_dict)?;
 
                     return Ok(response);
                 }
