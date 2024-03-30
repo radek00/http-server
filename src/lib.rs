@@ -22,6 +22,43 @@ pub mod router;
 // }
 
 
+fn write_response(response: &HttpResponse, mut stream: &TcpStream) -> Result<(), Box<dyn std::error::Error>> {
+    let body = match &response.body {
+        Body::Text(text) => text.clone(),
+        Body::Json(json) => json.to_string(),
+        Body::File(file) => {
+            let headers = format!(
+                "HTTP/1.1 {}\r\n\
+                Content-Type: application/octet-stream\r\n\
+                Connection: keep-alive\r\n\
+                Server: RustHttpServer/1.0\r\n\
+                \r\n", response.status_code
+            );
+            stream.write_all(headers.as_bytes())?;
+            let mut reader = BufReader::new(file);
+            io::copy(&mut reader, &mut stream)?;
+            return Ok(());
+        }
+    };
+
+    let response = format!(
+        "HTTP/1.1 {}\r\n\
+        Content-Type: {}\r\n\
+        Content-Length: {}\r\n\
+        Connection: keep-alive\r\n\
+        Server: RustHttpServer/1.0\r\n\
+        \r\n\
+        {}",
+        response.status_code,
+        response.content_type,
+        body.len(),
+        body
+    );
+
+    stream.write_all(response.as_bytes())?;
+
+    Ok(())
+}
 
 pub struct HttpServer {
     pub port: u16,
@@ -39,8 +76,15 @@ impl HttpServer {
             let stream = stream?;
             let router_clone = Arc::clone(&arc_router);
             pool.execute( move | | {
-                handle_connection(stream, router_clone).unwrap_or_else(|err| {
+                handle_connection(&stream, router_clone).unwrap_or_else(|err| {
                     eprintln!("{}", err);
+                    let error_message = json!({
+                        "error": format!("{}", err)
+                    });
+                    let error_response = HttpResponse::new(Body::Json(error_message), None, 500);
+                    write_response(&error_response, &stream).unwrap_or_else(|err| {
+                        eprintln!("{}", err);                    
+                    })
                 });
             })?;
         }
@@ -48,7 +92,7 @@ impl HttpServer {
     }
 }
 
-fn handle_connection(mut stream: TcpStream, router: Arc<Mutex<Router>>) -> Result<(), Box<dyn std::error::Error>> {
+fn handle_connection(mut stream: &TcpStream, router: Arc<Mutex<Router>>) -> Result<(), Box<dyn std::error::Error>> {
     let mut buffer = [0; 1024];
     stream.read(&mut buffer)?;
 
@@ -61,54 +105,8 @@ fn handle_connection(mut stream: TcpStream, router: Arc<Mutex<Router>>) -> Resul
 
     let body = if http_parts.len() > 1 { Some(http_parts[1]) } else { None };
 
-    let response = router.lock().unwrap().route(path, method, body).unwrap_or_else(| err| {
-        let error_message = json!({
-            "error": format!("{}", err)
-        });
-        HttpResponse::new(Body::Json(error_message), None, 500)
-    });
-
-    let mut write_response = |body_string: &str| -> Result<(), Box<dyn std::error::Error>> {
-        let response = format!(
-            "HTTP/1.1 {}\r\n\
-            Content-Type: {}\r\n\
-            Content-Length: {}\r\n\
-            Connection: keep-alive\r\n\
-            Server: RustHttpServer/1.0\r\n\
-            \r\n\
-            {}",
-            response.status_code,
-            response.content_type,
-            body_string.len(),
-            body_string
-        );
+    let response = router.lock().unwrap().route(path, method, body)?;
+    write_response(&response, &stream)?;
     
-        stream.write_all(response.as_bytes())?;
-        Ok(())
-    };
-    
-    match &response.body {
-        Body::Text(text) => {
-            write_response(text)?;
-        }
-        Body::Json(json) => {
-            let json_string = json.to_string();
-            write_response(&json_string)?;
-        }
-        Body::File(file) => {
-            let headers = format!(
-                "HTTP/1.1 200 OK\r\n\
-                Content-Type: {}\r\n\
-                Connection: keep-alive\r\n\
-                Server: RustHttpServer/1.0\r\n\
-                \r\n", response.content_type
-            );
-
-            stream.write_all(headers.as_bytes())?;
-    
-            let mut reader = BufReader::new(file);
-            io::copy(&mut reader, &mut stream)?;
-        }
-    }
     Ok(())
 }
