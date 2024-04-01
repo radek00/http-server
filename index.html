@@ -3,10 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="./script.js" defer></script>
     <title>Simple HTTP Server</title>
 </head>
 <body>
-    <h1>Hello world</h1>
-    <script src="./script.js"></script>
+    <section>
+        <table>
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Last modified</th>
+                    <th>Size</th>
+                </tr>
+            </thead>
+            <button id="up-button"></button>
+            <tbody>
+            </tbody>
+        </table>
+    </section>
 </body>
+<style>
+    table {
+        border-collapse: collapse;
+        width: fit-content;
+        min-width: 20%;
+    }
+
+    th {
+        border-bottom: 1px dashed black;
+        padding: 8px;
+        text-align: left;
+    }
+</style>
 </html>
