@@ -1,5 +1,6 @@
 use std::fs::{self, File};
 
+use chrono::{DateTime, Utc};
 use http_server::{router::{Body, HttpResponse, Router}, HttpServer};
 use serde::{Deserialize, Serialize};
 
@@ -18,7 +19,10 @@ enum FileType {
 #[derive(Debug, Serialize, Deserialize)]
 struct Files {
     path: String,
+    name: String,
     file_type: FileType,
+    last_modified: String,
+    size: u64,
 }
 
 fn main() {
@@ -43,9 +47,13 @@ fn main() {
         Ok(HttpResponse::new(Body::Text("Error occured".to_string()),Some(String::from("text/plain")), 500))
     });
     router.add_route("/api/files", "GET", |_, params| {
-        let file_name = format!("./{}", params.get("path").ok_or("Missing required query param")?);
+        let file_name = match params.get("path") {
+            Some(path) if path.starts_with("./") => path.to_string(),
+            Some(path) => format!("./{}", path),
+            None => return Err("Missing required query param".into()),
+        };
         let file = File::open(&file_name)?;
-        Ok(HttpResponse::new(Body::File(file), Some(mime_guess::from_path(file_name).first_or_octet_stream().to_string()), 200))
+        Ok(HttpResponse::new(Body::File(file, file_name.split('/').last().ok_or("Path error")?.to_string()), Some(mime_guess::from_path(&file_name).first_or_octet_stream().to_string()), 200))
     
     });
 
@@ -68,9 +76,14 @@ fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::error::E
     let mut path_info = Vec::new();
     for path in paths {
         let path = path?;
+        let system_time:  DateTime<Utc> = path.metadata()?.modified()?.into();
+
         let file = Files {
+            name: path.file_name().into_string().unwrap(),
             path: format!("{}", path.path().display()),
             file_type: if path.path().is_dir() { FileType::Directory } else { FileType::File },
+            last_modified: system_time.format("%d/%m/%Y %T").to_string(),
+            size: path.metadata()?.len(),
         };
         path_info.push(file);
     }

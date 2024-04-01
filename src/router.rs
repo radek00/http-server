@@ -5,7 +5,7 @@ use serde_json::json;
 pub enum Body {
     Text(String),
     Json(serde_json::Value),
-    File(File),
+    File(File, String),
     // Add more variants here for other types you want to support
 }
 
