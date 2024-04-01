@@ -26,13 +26,14 @@ fn write_response(response: &HttpResponse, mut stream: &TcpStream) -> Result<(),
     let body = match &response.body {
         Body::Text(text) => text.clone(),
         Body::Json(json) => json.to_string(),
-        Body::File(file) => {
+        Body::File(file, name) => {
             let headers = format!(
                 "HTTP/1.1 {}\r\n\
-                Content-Type: application/octet-stream\r\n\
+                Content-Type: {}\r\n\
+                Content-Disposition: attachment; filename=\"{}\"\r\n\
                 Connection: keep-alive\r\n\
                 Server: RustHttpServer/1.0\r\n\
-                \r\n", response.status_code
+                \r\n", response.status_code, response.content_type, name
             );
             stream.write_all(headers.as_bytes())?;
             let mut reader = BufReader::new(file);
