@@ -1,19 +1,16 @@
-let previousPath = '';
+let currentPath = '';
 
-function renderUpButton() {
-    const button  = document.getElementById('up-button');
-    button.onclick = () => {
-        renderFileTree(previousPath);
-    }
-    button.innerText = `UP - ${previousPath}`;
+function renderPath(path = "./") {
+    const pathElem  = document.querySelector('.path-wrapper p');
+    pathElem.innerHTML = path;
 }
 
-async function fetchFiles(path = "") {
+async function fetchFiles(path = "./") {
     const files = await fetch(`/api/directory?path=${path}`);
     return await files.json();
 }
 
-async function renderFileTree(path = "") {
+async function renderFileTree(path = "./") {
     const tbody = document.querySelector('tbody');
     tbody.innerHTML = '';
     const files = await fetchFiles(path);
@@ -27,8 +24,8 @@ async function renderFileTree(path = "") {
             fileLink.textContent = `${file.name}/`;
             fileLink.onclick = (event) => {
                 event.preventDefault();
-                previousPath = `${file.path.split('/').slice(0, -1).join('/')}/`;
-                renderUpButton();
+                currentPath = file.path;
+                renderPath(file.path);
                 renderFileTree(file.path);
             }
         } else {
@@ -47,5 +44,19 @@ async function renderFileTree(path = "") {
     });
 };
 
-renderUpButton();
-renderFileTree(previousPath);
+function onUpClick() {
+    const pathArray = currentPath.split('/');
+    pathArray.pop();
+    const path = pathArray.join('/');
+    currentPath = path;
+    console.log(path);
+    renderPath(path);
+    renderFileTree(path);
+}
+
+fetch("/api/path").then(resp => resp.text()).then(text => {
+    console.log(text);
+    currentPath = text;
+    renderPath(text);
+    renderFileTree(currentPath);
+});
