@@ -1,4 +1,4 @@
-use std::fs::{self, File};
+use std::{env, fs::{self, File}};
 
 use chrono::{DateTime, Utc};
 use http_server::{router::{Body, HttpResponse, Router}, HttpServer};
@@ -47,19 +47,19 @@ fn main() {
         Ok(HttpResponse::new(Body::Text("Error occured".to_string()),Some(String::from("text/plain")), 500))
     });
     router.add_route("/api/files", "GET", |_, params| {
-        let file_name = match params.get("path") {
-            Some(path) if path.starts_with("./") => path.to_string(),
-            Some(path) => format!("./{}", path),
-            None => return Err("Missing required query param".into()),
-        };
-        let file = File::open(&file_name)?;
-        Ok(HttpResponse::new(Body::File(file, file_name.split('/').last().ok_or("Path error")?.to_string()), Some(mime_guess::from_path(&file_name).first_or_octet_stream().to_string()), 200))
+        let file_path = params.get("path").ok_or("Missing path parameter")?;
+        let file = File::open(&file_path)?;
+        Ok(HttpResponse::new(Body::File(file, file_path.split('/').last().ok_or("Path error")?.to_string()), Some(mime_guess::from_path(&file_path).first_or_octet_stream().to_string()), 200))
     
     });
 
     router.add_route("/api/directory", "GET", |_, params| {
         //println!("Request to directory path with query param: {:?}", params.unwrap());
-        Ok(HttpResponse::new(Body::Json(list_directory(&format!("./{}", params.get("path").unwrap_or_else(|| {&""})))?), None, 200))
+        Ok(HttpResponse::new(Body::Json(list_directory(params.get("path").ok_or("Missing path parameter")?)?), None, 200))
+    });
+
+    router.add_route("/api/path", "GET", |_,_| {
+        Ok(HttpResponse::new(Body::Text(env::current_dir()?.to_string_lossy().to_string()), Some(String::from("text/plain")), 200))
     });
 
     router.add_route("/api/json", "GET", |_, _ | {
@@ -80,7 +80,7 @@ fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::error::E
 
         let file = Files {
             name: path.file_name().into_string().unwrap(),
-            path: format!("{}", path.path().display()),
+            path: fs::canonicalize(path.path())?.to_string_lossy().into_owned(),
             file_type: if path.path().is_dir() { FileType::Directory } else { FileType::File },
             last_modified: system_time.format("%d/%m/%Y %T").to_string(),
             size: path.metadata()?.len(),
@@ -88,7 +88,7 @@ fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::error::E
         path_info.push(file);
     }
 
-    let v = serde_json::to_value(&path_info)?;
+    let v = serde_json::to_value(path_info)?;
     
     Ok(v)
 }
