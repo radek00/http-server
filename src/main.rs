@@ -77,7 +77,7 @@ fn main() {
 
 
 fn split_path(path: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
-    let current_path = Path::canonicalize(Path::new(path))?;
+    let current_path = Path::new(path).canonicalize()?;
     let mut parts = Vec::new();
     let mut appended = String::new();
     for (idx, part) in current_path.iter().enumerate() {
