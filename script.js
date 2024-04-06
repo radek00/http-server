@@ -1,8 +1,27 @@
-let currentPath = '';
+const pathElem  = document.querySelector('.path-wrapper div');
+const upButton = document.getElementById('up-button');
+let currentPathElem;
+let currentPaths;
 
-function renderPath(path = "./") {
-    const pathElem  = document.querySelector('.path-wrapper p');
-    pathElem.innerHTML = path;
+function renderPath(pathArray) {
+    pathElem.innerHTML = '';
+    if (pathArray.length > 1) upButton.removeAttribute('disabled');
+    pathArray.forEach((path) => {
+        const pathLink = document.createElement('a');
+        pathLink.href = '#';
+        pathLink.textContent = path.part_name === "/" ? "/root" : path.part_name;
+
+        pathLink.onclick = (event) => {
+            event.preventDefault();
+            currentPathElem.classList.toggle('current');
+            pathLink.classList.toggle('current');
+            currentPathElem = pathLink;
+            fetchPath(path.full_path);
+        };
+        pathElem.appendChild(pathLink);
+    });
+    currentPathElem = pathElem.lastChild;
+    currentPathElem.classList.add('current');
 }
 
 async function fetchFiles(path = "./") {
@@ -24,9 +43,7 @@ async function renderFileTree(path = "./") {
             fileLink.textContent = `${file.name}/`;
             fileLink.onclick = (event) => {
                 event.preventDefault();
-                currentPath = file.path;
-                renderPath(file.path);
-                renderFileTree(file.path);
+                fetchPath(file.path);
             }
         } else {
             fileLink.href = `api/files?path=${file.path}`;
@@ -45,18 +62,21 @@ async function renderFileTree(path = "./") {
 };
 
 function onUpClick() {
-    const pathArray = currentPath.split('/');
-    pathArray.pop();
-    const path = pathArray.join('/');
-    currentPath = path;
-    console.log(path);
-    renderPath(path);
-    renderFileTree(path);
+    const previousPath = currentPaths[currentPaths.length - 2];
+    if (previousPath.part_name === "/") {
+        upButton.setAttribute('disabled', 'true');
+    }
+    console.log(previousPath);
+    fetchPath(previousPath.full_path);
 }
 
-fetch("/api/path").then(resp => resp.text()).then(text => {
-    console.log(text);
-    currentPath = text;
-    renderPath(text);
-    renderFileTree(currentPath);
-});
+function fetchPath(path = "./") {
+    fetch(`/api/path?path=${path}`).then(resp => resp.json()).then(paths => {
+        console.log(paths);
+        currentPaths = paths;
+        renderPath(paths);
+        renderFileTree(paths[paths.length -1].full_path);
+    });
+}
+
+fetchPath();
