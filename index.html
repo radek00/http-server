@@ -7,6 +7,7 @@
     <title>Simple HTTP Server</title>
 </head>
 <body>
+    <h1>Simle HTTP Server</h1>
     <section>
         <table>
             <thead>
@@ -18,8 +19,9 @@
             </thead>
             <div class="path-wrapper">
 
-                <button id="up-button" onclick="onUpClick()">UP</button>
-                <p>test</p>
+                <button href="#" id="up-button" onclick="onUpClick()">[UP]</button>
+                <div>
+                </div>
             </div>
             <tbody>
             </tbody>
@@ -27,6 +29,10 @@
     </section>
 </body>
 <style>
+    body {
+        font-family: Arial, sans-serif;
+        padding: 1rem;
+    }
     table {
         border-collapse: collapse;
         width: fit-content;
@@ -43,9 +49,17 @@
         display: flex;
         gap: 1rem;
         align-items: center;
+        margin-bottom: 1rem;
     }
     .path-wrapper button {
         height: fit-content;
+    }
+    .path-wrapper div {
+        display: flex;
+        gap: 0.5rem;
+    }
+    .path-wrapper div a.current {
+        color: red;
     }
 </style>
 </html>
