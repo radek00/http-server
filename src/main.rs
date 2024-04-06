@@ -81,8 +81,7 @@ fn split_path(path: &str) -> Result<serde_json::Value, Box<dyn std::error::Error
     let mut parts = Vec::new();
     let mut appended = String::new();
     for (idx, part) in current_path.iter().enumerate() {
-        println!("Part: {:?}", part);
-        appended.push_str(&format!("{}{}", part.to_string_lossy().to_string(), if idx == 0 { "" } else { "/" }));
+        appended.push_str(&format!("{}{}", part.to_string_lossy(), if idx == 0 { "" } else { "/" }));
         parts.push(PathParts {
             part_name: part.to_string_lossy().to_string(),
             full_path: appended.clone(),
