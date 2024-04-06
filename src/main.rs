@@ -1,4 +1,4 @@
-use std::{env, fs::{self, File}};
+use std::{fs::{self, File}, path::Path};
 
 use chrono::{DateTime, Utc};
 use http_server::{router::{Body, HttpResponse, Router}, HttpServer};
@@ -23,6 +23,12 @@ struct Files {
     file_type: FileType,
     last_modified: String,
     size: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct PathParts {
+    part_name: String,
+    full_path: String,
 }
 
 fn main() {
@@ -58,8 +64,8 @@ fn main() {
         Ok(HttpResponse::new(Body::Json(list_directory(params.get("path").ok_or("Missing path parameter")?)?), None, 200))
     });
 
-    router.add_route("/api/path", "GET", |_,_| {
-        Ok(HttpResponse::new(Body::Text(env::current_dir()?.to_string_lossy().to_string()), Some(String::from("text/plain")), 200))
+    router.add_route("/api/path", "GET", |_,params| {
+        Ok(HttpResponse::new(Body::Json(split_path(params.get("path").ok_or("Missing path parameter")?)?), None, 200))
     });
 
     router.add_route("/api/json", "GET", |_, _ | {
@@ -69,6 +75,21 @@ fn main() {
     server.run(router).expect("Starting server failed");
 }
 
+
+fn split_path(path: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    let current_path = Path::canonicalize(Path::new(path))?;
+    let mut parts = Vec::new();
+    let mut appended = String::new();
+    for (idx, part) in current_path.iter().enumerate() {
+        println!("Part: {:?}", part);
+        appended.push_str(&format!("{}{}", part.to_string_lossy().to_string(), if idx == 0 { "" } else { "/" }));
+        parts.push(PathParts {
+            part_name: part.to_string_lossy().to_string(),
+            full_path: appended.clone(),
+        });
+    }
+    Ok(serde_json::to_value(parts)?)
+}
 
 fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
     let paths = fs::read_dir(path)?;
