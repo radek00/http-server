@@ -7,6 +7,7 @@ use router::{Body, HttpResponse, Router};
 
 mod thread_pool;
 pub mod router;
+pub mod static_files;
 
 // #[derive(Debug)]
 // enum HttpMethod {
