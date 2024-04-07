@@ -7,10 +7,8 @@ pub struct StaticFiles {
 impl StaticFiles {
     pub fn new() -> Self {
         let mut content = HashMap::new();
-        let js = include_bytes!("./dist/script.js");
-        let html = include_bytes!("./dist/index.html");
-        content.insert(String::from("script.js"), js.to_vec());
-        content.insert(String::from("index.html"), html.to_vec());
+        content.insert(String::from("script.js"), include_bytes!("./dist/script.js").to_vec());
+        content.insert(String::from("index.html"), include_bytes!("./dist/index.html").to_vec());
         
         StaticFiles {
             content,

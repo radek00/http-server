@@ -32,22 +32,20 @@ struct PathParts {
 }
 
 fn main() {
-    let static_files = StaticFiles::new();
     let server = HttpServer {
         port: 7878,
         threads: 4,
     };
     let mut router = Router::new();
 
-    router.add_route("/{file}?","GET", move |_, params| {
+    router.add_route("/{file}?","GET", |_, params| {
+        let static_files = StaticFiles::new(); // Create a new instance of StaticFiles
         let file_name = match params.get("file") {
             Some(file) => file,
             None => "index.html",
             
         };
-
-        let contents = static_files.get(file_name)?;
-        Ok(HttpResponse::new(Body::Text(String::from_utf8_lossy(contents).to_string()), Some(mime_guess::from_path(file_name).first_or_text_plain().to_string()), 200))
+        Ok(HttpResponse::new(Body::FileBytes(static_files.get(file_name)?.to_vec(), file_name.to_string()), Some(mime_guess::from_path(file_name).first_or_text_plain().to_string()), 200))
     });
     router.add_route("/api/error", "GET", |data, _| {
         println!("Request to other path with data {}",data.unwrap());
@@ -56,7 +54,7 @@ fn main() {
     router.add_route("/api/files", "GET", |_, params| {
         let file_path = params.get("path").ok_or("Missing path parameter")?;
         let file = File::open(&file_path)?;
-        Ok(HttpResponse::new(Body::File(file, file_path.split('/').last().ok_or("Path error")?.to_string()), Some(mime_guess::from_path(&file_path).first_or_octet_stream().to_string()), 200))
+        Ok(HttpResponse::new(Body::FileStream(file, file_path.split('/').last().ok_or("Path error")?.to_string()), Some(mime_guess::from_path(&file_path).first_or_octet_stream().to_string()), 200))
     
     });
 
