@@ -5,8 +5,8 @@ use serde_json::json;
 pub enum Body {
     Text(String),
     Json(serde_json::Value),
-    File(File, String),
-    // Add more variants here for other types you want to support
+    FileStream(File, String),
+    FileBytes(Vec<u8>, String),
 }
 
 pub struct HttpResponse {

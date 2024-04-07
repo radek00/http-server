@@ -27,7 +27,19 @@ fn write_response(response: &HttpResponse, mut stream: &TcpStream) -> Result<(),
     let body = match &response.body {
         Body::Text(text) => text.clone(),
         Body::Json(json) => json.to_string(),
-        Body::File(file, name) => {
+        Body::FileBytes(file, _) => {
+            let headers = format!(
+                "HTTP/1.1 {}\r\n\
+                Content-Type: {}\r\n\
+                Connection: keep-alive\r\n\
+                Server: RustHttpServer/1.0\r\n\
+                \r\n", response.status_code, response.content_type
+            );
+            stream.write_all(headers.as_bytes())?;
+            stream.write_all(file)?;
+            return Ok(());
+        },
+        Body::FileStream(file, name) => {
             let headers = format!(
                 "HTTP/1.1 {}\r\n\
                 Content-Type: {}\r\n\
