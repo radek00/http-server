@@ -1,7 +1,7 @@
 use std::{fs::{self, File}, path::Path};
 
 use chrono::{DateTime, Utc};
-use http_server::{router::{Body, HttpResponse, Router}, HttpServer};
+use http_server::{router::{Body, HttpResponse, Router}, static_files::StaticFiles, HttpServer};
 use serde::{Deserialize, Serialize};
 
 
@@ -32,21 +32,22 @@ struct PathParts {
 }
 
 fn main() {
+    let static_files = StaticFiles::new();
     let server = HttpServer {
         port: 7878,
         threads: 4,
     };
     let mut router = Router::new();
 
-    router.add_route("/{file}?","GET", |_, params| {
+    router.add_route("/{file}?","GET", move |_, params| {
         let file_name = match params.get("file") {
             Some(file) => file,
             None => "index.html",
             
         };
 
-        let contents = fs::read_to_string(file_name)?;
-        Ok(HttpResponse::new(Body::Text(contents), Some(mime_guess::from_path(file_name).first_or_text_plain().to_string()), 200))
+        let contents = static_files.get(file_name)?;
+        Ok(HttpResponse::new(Body::Text(String::from_utf8_lossy(contents).to_string()), Some(mime_guess::from_path(file_name).first_or_text_plain().to_string()), 200))
     });
     router.add_route("/api/error", "GET", |data, _| {
         println!("Request to other path with data {}",data.unwrap());
