@@ -6,7 +6,7 @@ pub enum Body {
     Text(String),
     Json(serde_json::Value),
     FileStream(File, String),
-    FileBytes(Vec<u8>, String),
+    StaticFile(&'static [u8], String),
 }
 
 pub struct HttpResponse {

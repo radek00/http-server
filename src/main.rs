@@ -45,7 +45,7 @@ fn main() {
             None => "index.html",
             
         };
-        Ok(HttpResponse::new(Body::FileBytes(static_files.get(file_name)?.to_vec(), file_name.to_string()), Some(mime_guess::from_path(file_name).first_or_text_plain().to_string()), 200))
+        Ok(HttpResponse::new(Body::StaticFile(static_files.get(file_name)?, file_name.to_string()), Some(mime_guess::from_path(file_name).first_or_text_plain().to_string()), 200))
     });
     router.add_route("/api/error", "GET", |data, _| {
         println!("Request to other path with data {}",data.unwrap());

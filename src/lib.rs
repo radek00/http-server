@@ -27,7 +27,7 @@ fn write_response(response: &HttpResponse, mut stream: &TcpStream) -> Result<(),
     let body = match &response.body {
         Body::Text(text) => text.clone(),
         Body::Json(json) => json.to_string(),
-        Body::FileBytes(file, _) => {
+        Body::StaticFile(file, _) => {
             let headers = format!(
                 "HTTP/1.1 {}\r\n\
                 Content-Type: {}\r\n\
