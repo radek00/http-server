@@ -109,17 +109,29 @@ impl HttpServer {
 fn handle_connection(mut stream: &TcpStream, router: Arc<Mutex<Router>>) -> Result<(), Box<dyn std::error::Error>> {
     let mut buffer = [0; 1024];
     stream.read(&mut buffer)?;
+    let buffer_clone = buffer.clone();
+    let mut headers = [httparse::EMPTY_HEADER; 16];
+    let mut request = httparse::Request::new(&mut headers);
+    let res = request.parse(&mut buffer)?;
+    let body = &buffer_clone[res.unwrap()..];
 
-    let request = String::from_utf8_lossy(&buffer[..]);
-    let http_parts: Vec<&str> = request.split("\r\n\r\n").collect();
-    let request_lines: Vec<&str> = http_parts[0].lines().collect();
+        // Calculate the size of the body
+        //let body_size = buffer.len() - res.unwrap();
 
-    let http_method: Vec<&str> = request_lines[0].split_whitespace().collect();
-    let (method, path, _version) = (http_method[0], http_method[1], http_method[2]);
+        // Create a new buffer of the appropriate size
+        //let mut body_buffer = vec![0; body_size];
+    
+        // Read the body into the new buffer
+    //stream.read(&mut buffer)?;
+    // let http_parts: Vec<&str> = request.split("\r\n\r\n").collect();
+    // let request_lines: Vec<&str> = http_parts[0].lines().collect();
 
-    let body = if http_parts.len() > 1 { Some(http_parts[1]) } else { None };
+    // let http_method: Vec<&str> = request_lines[0].split_whitespace().collect();
+    // let (method, path, _version) = (http_method[0], http_method[1], http_method[2]);
 
-    let response = router.lock().unwrap().route(path, method, body)?;
+    // let body = if http_parts.len() > 1 { Some(http_parts[1]) } else { None };
+
+    let response = router.lock().unwrap().route(&request.path.unwrap(), &request.method.unwrap(), Some(&String::from_utf8_lossy(body)))?;
     write_response(&response, &stream)?;
     
     Ok(())
