@@ -1,4 +1,5 @@
 
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
@@ -143,20 +144,35 @@ fn handle_connection(mut stream: &TcpStream, router: Arc<Mutex<Router>>) -> Resu
         Some(content_type) => {
             if content_type.contains("multipart/form-data") {
                 let idx = content_type.find("boundary=").expect("no boundary");
-                let boundary = &content_type[(idx + "boundary=".len())..];
-                let mut metadata = String::new();
+                let boundary = format!("--{}", &content_type[(idx + "boundary=".len())..]);
+                let mut multipart_headers = HashMap::new();
+                let mut header_size = 0;
                 loop {
                     let mut line = String::new();
-                    reader.read_line(&mut line)?;
-                    println!("{}", line);
-                    metadata.push_str(&line);
+                    header_size += reader.read_line(&mut line)?;
+                    if line.trim() == boundary {
+                        continue;
+                    }
+                    //metadata.push_str(&line);
                     if line == "\r\n" {
                         break;
                     }
+
+                    
+                    let parts: Vec<&str> = line.trim().split(':').collect();
+                    println!("{:?}", parts);
+                    multipart_headers.insert(parts[0].to_owned(), parts[1].to_owned());
                 }
-                let mut file = File::create("test.exe")?;
+                let content_disposition = multipart_headers.get("Content-Disposition").unwrap();
+                let start = content_disposition.find("filename=\"").unwrap() + "filename=\"".len();
+                let end = &content_disposition[start..].find("\"").unwrap() + start;
+                let filename = &content_disposition[start..end];
+                let target_path = format!("{}/{}", path, filename);
+                println!("Target path: {:?}", target_path);
+                let mut file = File::create(target_path)?;
                 let content_length = headers.get("Content-Length").unwrap().parse::<usize>()?;
-                let file_bytes = content_length - boundary.len() - 4 - metadata.len() - 4;
+                let file_bytes = content_length - boundary.len() - header_size - 6;
+                println!("File bytes: {:?}", file_bytes);
                 let mut limited_reader = reader.take(file_bytes.try_into()?);
                 io::copy(&mut  limited_reader, &mut  file)?;
 
