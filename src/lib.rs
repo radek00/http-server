@@ -1,4 +1,4 @@
-use std::borrow::Borrow;
+
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
@@ -144,41 +144,21 @@ fn handle_connection(mut stream: &TcpStream, router: Arc<Mutex<Router>>) -> Resu
             if content_type.contains("multipart/form-data") {
                 let idx = content_type.find("boundary=").expect("no boundary");
                 let boundary = &content_type[(idx + "boundary=".len())..];
-                let mut multipart  = Multipart::with_body(reader, boundary);
-                // multipart.foreach_entry(|mut entry| {
-                //     match entry.headers.name.to {
-                //         "file" => {
-                //             println!("file");
-                //         }
-                //     }
-                // });
-                match multipart.save().size_limit(u64::MAX).ignore_text().temp() {
-                    SaveResult::Full(entries) => {
-                        let files_fields = match entries.fields.get("file") {
-                            Some(fields) => fields,
-                            None => {
-                                return Err(Box::from("Error"))
-                            }
-                        };
-
-                        for field in files_fields {
-                            let mut data = field.data.readable().unwrap();
-                            let headers = &field.headers;
-                            let mut target_path = format!("{}/{}", path, headers.filename.clone().unwrap());
-
-                            // target_path.push(headers.filename.clone().unwrap());
-                           std::fs::File::create(target_path)
-                                .and_then(|mut file| io::copy(&mut data, &mut file))?;
-                        }
-                    }
-                    SaveResult::Partial(_, _) => {
-                        eprintln!("Failed to save multipart form data");
-                    }
-                    SaveResult::Error(err) => {
-                        eprintln!("Error saving multipart form data: {}", err);
-                    
+                let mut metadata = String::new();
+                loop {
+                    let mut line = String::new();
+                    reader.read_line(&mut line)?;
+                    println!("{}", line);
+                    metadata.push_str(&line);
+                    if line == "\r\n" {
+                        break;
                     }
                 }
+                let mut file = File::create("test.exe")?;
+                let content_length = headers.get("Content-Length").unwrap().parse::<usize>()?;
+                let file_bytes = content_length - boundary.len() - 4 - metadata.len() - 4;
+                let mut limited_reader = reader.take(file_bytes.try_into()?);
+                io::copy(&mut  limited_reader, &mut  file)?;
 
             } else {
                 reader.read(&mut buffer)?;
