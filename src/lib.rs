@@ -141,7 +141,9 @@ fn handle_connection(stream: &TcpStream, router: Arc<Mutex<Router>>) -> Result<(
     match headers.get("Content-Type") {
         Some(content_type) => {
             if content_type.contains("multipart/form-data") {
-                handle_multipart_file_upload(&content_type, &headers, &mut reader, &path)?;
+                let response = handle_multipart_file_upload(&content_type, &headers, &mut reader, &path)?;
+                return write_response(&response, stream)
+                
 
             } else {
                 body = parse_body(&headers, &mut reader, &mut buffer)?;
@@ -171,7 +173,7 @@ fn parse_body<'a>(headers: &'a HashMap<&'a str, &'a str>, reader: &'a mut BufRea
     }
 }
 
-fn handle_multipart_file_upload(content_type: &str, headers: &HashMap<&str, &str>, reader: &mut BufReader<&TcpStream>, path: &str) -> Result<(), Box<dyn std::error::Error>>  {
+fn handle_multipart_file_upload(content_type: &str, headers: &HashMap<&str, &str>, reader: &mut BufReader<&TcpStream>, path: &str) -> Result<HttpResponse, Box<dyn std::error::Error>>  {
     let idx = content_type.find("boundary=").ok_or("Missing multipart boundary")?;
     let boundary = format!("--{}", &content_type[(idx + "boundary=".len())..]);
     let mut multipart_headers = HashMap::new();
@@ -216,5 +218,7 @@ fn handle_multipart_file_upload(content_type: &str, headers: &HashMap<&str, &str
 
     //copy streams
     io::copy(&mut  limited_reader, &mut  file)?;
-    Ok(())
+
+    let response = HttpResponse::new(Body::Text(format!("File {} uploaded successfully.", filename)), Some(String::from("text/plain")), 200);
+    Ok(response)
 }
