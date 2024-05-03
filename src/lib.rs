@@ -1,10 +1,14 @@
 
+use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
+use std::error::Error;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::ops::Deref;
 use std::sync::{Arc, Mutex};
 use multipart::server::{Multipart, SaveResult};
+use serde::Deserialize;
 use serde_json::json;
 
 use router::{Body, HttpResponse, Router};
@@ -25,7 +29,6 @@ pub mod static_files;
 //     TRACE,
 //     CONNECT,
 // }
-
 
 fn write_response(response: &HttpResponse, mut stream: &TcpStream) -> Result<(), Box<dyn std::error::Error>> {
     let body = match &response.body {
@@ -138,59 +141,83 @@ fn handle_connection(mut stream: &TcpStream, router: Arc<Mutex<Router>>) -> Resu
         }
     }
 
-    let mut buffer = [0; 1024];
+    let mut buffer = Vec::new();
     let mut body = None;
     match headers.get("Content-Type") {
         Some(content_type) => {
             if content_type.contains("multipart/form-data") {
-                let idx = content_type.find("boundary=").expect("no boundary");
-                let boundary = format!("--{}", &content_type[(idx + "boundary=".len())..]);
-                let mut multipart_headers = HashMap::new();
-                let mut header_size = 0;
-                loop {
-                    let mut line = String::new();
-                    header_size += reader.read_line(&mut line)?;
-                    if line.trim() == boundary {
-                        continue;
-                    }
-                    //metadata.push_str(&line);
-                    if line == "\r\n" {
-                        break;
-                    }
-
-                    
-                    let parts: Vec<&str> = line.trim().split(':').collect();
-                    println!("{:?}", parts);
-                    multipart_headers.insert(parts[0].to_owned(), parts[1].to_owned());
-                }
-                let content_disposition = multipart_headers.get("Content-Disposition").unwrap();
-                let start = content_disposition.find("filename=\"").unwrap() + "filename=\"".len();
-                let end = &content_disposition[start..].find("\"").unwrap() + start;
-                let filename = &content_disposition[start..end];
-                let target_path = format!("{}/{}", path, filename);
-                println!("Target path: {:?}", target_path);
-                let mut file = File::create(target_path)?;
-                let content_length = headers.get("Content-Length").unwrap().parse::<usize>()?;
-                let file_bytes = content_length - boundary.len() - header_size - 6;
-                println!("File bytes: {:?}", file_bytes);
-                let mut limited_reader = reader.take(file_bytes.try_into()?);
-                io::copy(&mut  limited_reader, &mut  file)?;
+                handle_multipart_file_upload(&content_type, &headers, &mut reader, &path)?;
 
             } else {
-                reader.read(&mut buffer)?;
-                body = Some(String::from_utf8_lossy(&buffer[..]));
-                println!("Body: {:?}", body);
+                body = parse_body(&headers, &mut reader, &mut buffer)?;
             }
         }
         None => {
-            reader.read(&mut buffer)?;
-            body = Some(String::from_utf8_lossy(&buffer[..]));
-            println!("Body: {:?}", body);
+            body = parse_body(&headers, &mut reader, &mut buffer)?;
         }
     }
 
     let response = router.lock().unwrap().route(path, method, body.as_deref())?;
     write_response(&response, &stream)?;
     
+    Ok(())
+}
+
+fn parse_body<'a>(headers: &'a HashMap<&'a str, &'a str>, reader: &'a mut BufReader<&'a TcpStream>, mut buffer: &'a mut Vec<u8>) -> Result<Option<Cow<'a, str>>, Box<dyn std::error::Error>> {
+    match headers.get("Content-Length") {
+        Some(content_length) => {
+            let content_length = content_length.parse::<usize>()?;
+            let mut body_reader = reader.take(content_length.try_into()?);    
+            body_reader.read_to_end(&mut buffer)?;
+            let body = String::from_utf8_lossy(&buffer[..]);
+            Ok(Some(body))
+        },
+        None => Ok(None),
+    }
+}
+
+fn handle_multipart_file_upload(content_type: &str, headers: &HashMap<&str, &str>, reader: &mut BufReader<&TcpStream>, path: &str) -> Result<(), Box<dyn std::error::Error>>  {
+    let idx = content_type.find("boundary=").ok_or("Missing multipart boundary")?;
+    let boundary = format!("--{}", &content_type[(idx + "boundary=".len())..]);
+    let mut multipart_headers = HashMap::new();
+    let mut header_size = 0;
+
+    //read headers
+    loop {
+        let mut line = String::new();
+        header_size += reader.read_line(&mut line)?;
+        if line.trim() == boundary {
+            continue;
+        }
+        if line == "\r\n" {
+            break;
+        }
+
+        
+        let parts: Vec<&str> = line.trim().split(':').collect();
+        println!("{:?}", parts);
+        multipart_headers.insert(parts[0].to_owned(), parts[1].to_owned());
+    }
+
+    //get file name from content disposition and form target path
+    let content_disposition = multipart_headers.get("Content-Disposition").ok_or("Missing content disposition")?;
+    let start = content_disposition.find("filename=\"").unwrap() + "filename=\"".len();
+    let end = &content_disposition[start..].find("\"").unwrap() + start;
+    let filename = &content_disposition[start..end];
+    let target_path = format!("{}/{}", path, filename);
+
+    println!("Target path: {:?}", target_path);
+
+    //calculate file size based on whole content length so that reading the stream can be stopped
+    let mut file = File::create(target_path)?;
+    let content_length = headers.get("Content-Length").ok_or("Missing content length")?.parse::<usize>()?;
+    let file_bytes = content_length - boundary.len() - header_size - 6;
+    println!("File bytes: {:?}", file_bytes);
+
+    //take only the file length from the main buf reader
+    let mut limited_reader = reader.take(file_bytes.try_into()?);
+
+    //copy streams
+    io::copy(&mut  limited_reader, &mut  file)?;
     Ok(())
 }
