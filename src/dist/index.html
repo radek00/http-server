@@ -9,6 +9,12 @@
 <body>
     <h1>Simle HTTP Server</h1>
     <section>
+        <form id="upload-form">
+            <label for="file">Upload file</label>
+            <input onchange="onUploadInputChange(event)" type="file" name="file">
+            <button type="submit">Upload</button>
+        </form>
+        <div id="upload-progress" class="d-none">Upload progress: <span>0%</span></div>
         <table>
             <thead>
                 <tr>
@@ -31,7 +37,13 @@
 <style>
     body {
         font-family: Arial, sans-serif;
-        padding: 1rem;
+        padding: .8rem;
+    }
+
+    section {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
     }
     table {
         border-collapse: collapse;
@@ -45,11 +57,14 @@
         text-align: left;
     }
 
+    .d-none {
+        display: none;
+    }
+
     .path-wrapper {
         display: flex;
         gap: 1rem;
         align-items: center;
-        margin-bottom: 1rem;
     }
     .path-wrapper button {
         height: fit-content;

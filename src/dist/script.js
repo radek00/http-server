@@ -1,5 +1,9 @@
 const pathElem  = document.querySelector('.path-wrapper div');
 const upButton = document.getElementById('up-button');
+const uploadProgress = document.getElementById('upload-progress');
+const uploadForm = document.getElementById('upload-form');
+uploadForm.reset();
+
 let currentPathElem;
 let currentPaths;
 
@@ -66,17 +70,54 @@ function onUpClick() {
     if (previousPath.part_name === "/") {
         upButton.setAttribute('disabled', 'true');
     }
-    console.log(previousPath);
     fetchPath(previousPath.full_path);
 }
 
 function fetchPath(path = "./") {
-    fetch(`/api/path?path=${path}`).then(resp => resp.json()).then(paths => {
-        console.log(paths);
+    fetch(`/api/path?path=${path}`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    
+    }).then(resp => resp.json()).then(paths => {
         currentPaths = paths;
         renderPath(paths);
         renderFileTree(paths[paths.length -1].full_path);
     });
 }
+
+function onUploadInputChange(event) {
+    if (event.target.files.length > 0) uploadProgress.classList.remove('d-none');
+}
+
+document.getElementById('upload-form').addEventListener('submit', (event) => {
+    const progressValue = uploadProgress.firstElementChild;
+    const targetPath = currentPaths[currentPaths.length - 1].full_path;
+    event.preventDefault();
+    const file = document.querySelector("#upload-form input[type='file']");
+    var formData = new FormData();
+    formData.append('file', file.files[0]);
+
+    var xhr = new XMLHttpRequest();
+
+    xhr.upload.onprogress = function (event) {
+        if (event.lengthComputable) {
+            var percentComplete = Math.trunc((event.loaded / event.total) * 100);
+            progressValue.innerHTML = `${percentComplete}%`;
+        }
+    }
+    xhr.open('POST', targetPath, true);
+
+    xhr.onload = function () {
+        if (xhr.status === 200) {
+            alert('File uploaded successfully.');
+        } else {
+            alert('An error occurred while uploading the file.');
+        }
+    };
+
+    xhr.send(formData);
+});
 
 fetchPath();
