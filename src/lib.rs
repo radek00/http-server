@@ -1,17 +1,12 @@
 
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
 use std::collections::HashMap;
-use std::error::Error;
 use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
-use std::ops::Deref;
 use std::sync::{Arc, Mutex};
-use multipart::server::{Multipart, SaveResult};
-use serde::Deserialize;
-use serde_json::json;
-
 use router::{Body, HttpResponse, Router};
+use serde_json::json;
 
 mod thread_pool;
 pub mod router;
@@ -113,7 +108,7 @@ impl HttpServer {
     }
 }
 
-fn handle_connection(mut stream: &TcpStream, router: Arc<Mutex<Router>>) -> Result<(), Box<dyn std::error::Error>> {
+fn handle_connection(stream: &TcpStream, router: Arc<Mutex<Router>>) -> Result<(), Box<dyn std::error::Error>> {
     let mut reader = BufReader::new(stream);
     
     let mut request = String::new();
@@ -201,9 +196,11 @@ fn handle_multipart_file_upload(content_type: &str, headers: &HashMap<&str, &str
 
     //get file name from content disposition and form target path
     let content_disposition = multipart_headers.get("Content-Disposition").ok_or("Missing content disposition")?;
-    let start = content_disposition.find("filename=\"").unwrap() + "filename=\"".len();
-    let end = &content_disposition[start..].find("\"").unwrap() + start;
-    let filename = &content_disposition[start..end];
+    let filename = content_disposition
+        .split("filename=\"")
+        .nth(1)
+        .and_then(|s| s.split("\"").next())
+        .ok_or("Error parsing file name")?;
     let target_path = format!("{}/{}", path, filename);
 
     println!("Target path: {:?}", target_path);
