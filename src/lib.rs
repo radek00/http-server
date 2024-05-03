@@ -137,7 +137,7 @@ fn handle_connection(stream: &TcpStream, router: Arc<Mutex<Router>>) -> Result<(
     }
 
     let mut buffer = Vec::new();
-    let mut body = None;
+    let body;
     match headers.get("Content-Type") {
         Some(content_type) => {
             if content_type.contains("multipart/form-data") {
