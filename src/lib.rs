@@ -115,7 +115,6 @@ fn handle_connection(stream: &TcpStream, router: Arc<Mutex<Router>>) -> Result<(
     loop {
         let mut line = String::new();
         reader.read_line(&mut line)?;
-        println!("{}", line);
         request.push_str(&line);
         if line == "\r\n" {
             break;
@@ -143,8 +142,6 @@ fn handle_connection(stream: &TcpStream, router: Arc<Mutex<Router>>) -> Result<(
             if content_type.contains("multipart/form-data") {
                 let response = handle_multipart_file_upload(&content_type, &headers, &mut reader, &path)?;
                 return write_response(&response, stream)
-                
-
             } else {
                 body = parse_body(&headers, &mut reader, &mut buffer)?;
             }
@@ -190,9 +187,7 @@ fn handle_multipart_file_upload(content_type: &str, headers: &HashMap<&str, &str
             break;
         }
 
-        
         let parts: Vec<&str> = line.trim().split(':').collect();
-        println!("{:?}", parts);
         multipart_headers.insert(parts[0].to_owned(), parts[1].to_owned());
     }
 
@@ -205,13 +200,10 @@ fn handle_multipart_file_upload(content_type: &str, headers: &HashMap<&str, &str
         .ok_or("Error parsing file name")?;
     let target_path = format!("{}/{}", path, filename);
 
-    println!("Target path: {:?}", target_path);
-
     //calculate file size based on whole content length so that reading the stream can be stopped
     let mut file = File::create(target_path)?;
     let content_length = headers.get("Content-Length").ok_or("Missing content length")?.parse::<usize>()?;
     let file_bytes = content_length - boundary.len() - header_size - 6;
-    println!("File bytes: {:?}", file_bytes);
 
     //take only the file length from the main buf reader
     let mut limited_reader = reader.take(file_bytes.try_into()?);
