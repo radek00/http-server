@@ -112,6 +112,7 @@ document.getElementById('upload-form').addEventListener('submit', (event) => {
     xhr.onload = function () {
         if (xhr.status === 200) {
             alert('File uploaded successfully.');
+            renderFileTree(targetPath);
         } else {
             alert('An error occurred while uploading the file.');
         }
