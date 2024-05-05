@@ -5,13 +5,14 @@ use std::fs::File;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
-use router::{Body, HttpResponse, Router};
 use serde_json::json;
 
 mod thread_pool;
 pub mod router;
 pub mod static_files;
-pub mod utils;
+
+pub use router::*;
+pub use static_files::*;
 
 // #[derive(Debug)]
 // enum HttpMethod {
