@@ -1,34 +1,11 @@
-use std::{fs::{self, File}, path::Path};
-
-use chrono::{DateTime, Utc};
-use http_server::{router::{Body, HttpResponse, Router}, static_files::StaticFiles, utils, HttpServer};
+use std::fs::File;
+use http_server::{router::{Body, HttpResponse, Router}, static_files::StaticFiles, utils::{list_directory, split_path}, HttpServer};
 use serde::{Deserialize, Serialize};
 
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Example {
     message: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-enum FileType {
-    Directory,
-    File,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct Files {
-    path: String,
-    name: String,
-    file_type: FileType,
-    last_modified: String,
-    size: String,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-struct PathParts {
-    part_name: String,
-    full_path: String,
 }
 
 fn main() {
@@ -72,42 +49,4 @@ fn main() {
     
     });
     server.run(router).expect("Starting server failed");
-}
-
-
-fn split_path(path: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
-    let current_path = Path::new(path).canonicalize()?;
-    let mut parts = Vec::new();
-    let mut appended = String::new();
-    for (idx, part) in current_path.iter().enumerate() {
-        appended.push_str(&format!("{}{}", part.to_string_lossy(), if idx == 0 { "" } else { "/" }));
-        parts.push(PathParts {
-            part_name: part.to_string_lossy().to_string(),
-            full_path: appended.clone(),
-        });
-    }
-    Ok(serde_json::to_value(parts)?)
-}
-
-fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
-    let paths = fs::read_dir(path)?;
-
-    let mut path_info = Vec::new();
-    for path in paths {
-        let path = path?;
-        let system_time:  DateTime<Utc> = path.metadata()?.modified()?.into();
-
-        let file = Files {
-            name: path.file_name().into_string().unwrap(),
-            path: fs::canonicalize(path.path())?.to_string_lossy().into_owned(),
-            file_type: if path.path().is_dir() { FileType::Directory } else { FileType::File },
-            last_modified: system_time.format("%d/%m/%Y %T").to_string(),
-            size: utils::human_bytes(path.metadata()?.len() as f64),
-        };
-        path_info.push(file);
-    }
-
-    let v = serde_json::to_value(path_info)?;
-    
-    Ok(v)
 }
