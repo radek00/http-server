@@ -11,6 +11,7 @@ use serde_json::json;
 mod thread_pool;
 pub mod router;
 pub mod static_files;
+pub mod utils;
 
 // #[derive(Debug)]
 // enum HttpMethod {

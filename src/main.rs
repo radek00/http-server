@@ -1,7 +1,7 @@
 use std::{fs::{self, File}, path::Path};
 
 use chrono::{DateTime, Utc};
-use http_server::{router::{Body, HttpResponse, Router}, static_files::StaticFiles, HttpServer};
+use http_server::{router::{Body, HttpResponse, Router}, static_files::StaticFiles, utils, HttpServer};
 use serde::{Deserialize, Serialize};
 
 
@@ -22,7 +22,7 @@ struct Files {
     name: String,
     file_type: FileType,
     last_modified: String,
-    size: u64,
+    size: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -102,7 +102,7 @@ fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::error::E
             path: fs::canonicalize(path.path())?.to_string_lossy().into_owned(),
             file_type: if path.path().is_dir() { FileType::Directory } else { FileType::File },
             last_modified: system_time.format("%d/%m/%Y %T").to_string(),
-            size: path.metadata()?.len(),
+            size: utils::human_bytes(path.metadata()?.len() as f64),
         };
         path_info.push(file);
     }
