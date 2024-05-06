@@ -84,6 +84,37 @@ pub struct HttpServer {
 }
 
 impl HttpServer {
+    pub fn build() -> HttpServer {
+        let args = clap::Command::new("Simple HTTP Server")
+            .version("1.0")
+            .author("radek00")
+            .about("Simple HTTP Srver. Implemented api endpoints allow for traversing directories, downloading and uploading files.")
+            .arg(clap::Arg::new("port")
+                .short('p')
+                .value_parser(clap::value_parser!(u16))
+                .required(true)
+                .default_value("7878")
+                .long("port")
+                .help("Sets the port number"))
+            .arg(clap::Arg::new("threads")
+                .short('t')
+                .value_parser(clap::value_parser!(usize))
+                .required(true)
+                .default_value("4")
+                .long("threads")
+                .help("Sets the number of threads"))
+            .get_matches();
+
+        let port = args.get_one::<u16>("port").unwrap();
+
+        let http_server = HttpServer {
+            port: *port,
+            threads: *args.get_one::<usize>("threads").unwrap(),
+        };
+
+        http_server
+
+    }
     pub fn run(&self, router: Router) -> Result<(), Box<dyn std::error::Error>> {
         println!("Server is running on port {}", self.port);
         let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], self.port)))?;
