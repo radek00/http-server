@@ -1,6 +1,6 @@
-use std::{collections::HashMap, fs::File};
 use regex::Regex;
 use serde_json::json;
+use std::{collections::HashMap, fs::File};
 
 pub enum Body {
     Text(String),
@@ -20,13 +20,16 @@ impl HttpResponse {
         HttpResponse {
             content_type: content_type.unwrap_or_else(|| "application/json".to_string()),
             body,
-            status_code
+            status_code,
         }
     }
 }
 
-type Handler = Box<dyn Fn(Option<&str>, HashMap<&str, &str>) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync>;
-
+type Handler = Box<
+    dyn Fn(Option<&str>, HashMap<&str, &str>) -> Result<HttpResponse, Box<dyn std::error::Error>>
+        + Send
+        + Sync,
+>;
 
 pub struct Route {
     pattern: Regex,
@@ -38,21 +41,37 @@ pub struct Router {
 
 impl Router {
     pub fn new() -> Self {
-        Router {
-            routes: Vec::new(),
-        }
+        Router { routes: Vec::new() }
     }
 
     pub fn add_route<F>(&mut self, path: &str, method: &str, handler: F)
     where
-        F: Fn(Option<&str>, HashMap<&str, &str>) -> Result<HttpResponse, Box<dyn std::error::Error>> + Send + Sync + 'static,
+        F: Fn(
+                Option<&str>,
+                HashMap<&str, &str>,
+            ) -> Result<HttpResponse, Box<dyn std::error::Error>>
+            + Send
+            + Sync
+            + 'static,
     {
-        let pattern = format!("^{}{}$", method, path.replace("{", "(?P<").replace("}", ">[^/]+)"));
+        let pattern = format!(
+            "^{}{}$",
+            method,
+            path.replace("{", "(?P<").replace("}", ">[^/]+)")
+        );
         let regex = Regex::new(&pattern).unwrap();
-        self.routes.push(Route { pattern: regex, handler: Box::new(handler) });
+        self.routes.push(Route {
+            pattern: regex,
+            handler: Box::new(handler),
+        });
     }
 
-    pub fn route(&self, path: &str, method: &str, data: Option<&str>) -> Result<HttpResponse, Box<dyn std::error::Error>> {
+    pub fn route(
+        &self,
+        path: &str,
+        method: &str,
+        data: Option<&str>,
+    ) -> Result<HttpResponse, Box<dyn std::error::Error>> {
         let stripped_path: Vec<&str> = path.split('?').collect();
         let pattern = format!("{}{}", method, stripped_path[0]);
         for route in &self.routes {
@@ -60,11 +79,12 @@ impl Router {
 
             match pattern_match {
                 Some(pattern_match) => {
-                    let mut param_dict: HashMap<&str, &str> = route.pattern
-                    .capture_names()
-                    .flatten()
-                    .filter_map(|n| Some((n, pattern_match.name(n)?.as_str())))
-                    .collect();
+                    let mut param_dict: HashMap<&str, &str> = route
+                        .pattern
+                        .capture_names()
+                        .flatten()
+                        .filter_map(|n| Some((n, pattern_match.name(n)?.as_str())))
+                        .collect();
 
                     if stripped_path.len() == 2 {
                         for param in stripped_path[1].split('&') {
@@ -74,12 +94,11 @@ impl Router {
                             }
                         }
                     }
-                    let response = (route.handler)(data,  param_dict)?;
+                    let response = (route.handler)(data, param_dict)?;
 
                     return Ok(response);
                 }
                 None => continue,
-                
             }
         }
         println!("No route found for path: {}", path);
