@@ -12,7 +12,6 @@ struct PathParts {
     full_path: String,
 }
 
-
 #[derive(Debug, Serialize, Deserialize)]
 enum FileType {
     Directory,
@@ -36,13 +35,12 @@ fn human_bytes<T: Into<f64>>(bytes: T) -> String {
     }
 
     let base = size.log10() / UNIT.log10();
-    
+
     let result = format!("{:.1}", UNIT.powf(base - base.floor()),)
-    .trim_end_matches(".0")
-    .to_owned();
+        .trim_end_matches(".0")
+        .to_owned();
 
     [&result, SUFFIX[base.floor() as usize]].join(" ")
-    
 }
 
 pub fn split_path(path: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
@@ -50,7 +48,11 @@ pub fn split_path(path: &str) -> Result<serde_json::Value, Box<dyn std::error::E
     let mut parts = Vec::new();
     let mut appended = String::new();
     for (idx, part) in current_path.iter().enumerate() {
-        appended.push_str(&format!("{}{}", part.to_string_lossy(), if idx == 0 { "" } else { "/" }));
+        appended.push_str(&format!(
+            "{}{}",
+            part.to_string_lossy(),
+            if idx == 0 { "" } else { "/" }
+        ));
         parts.push(PathParts {
             part_name: part.to_string_lossy().to_string(),
             full_path: appended.clone(),
@@ -65,12 +67,18 @@ pub fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::erro
     let mut path_info = Vec::new();
     for path in paths {
         let path = path?;
-        let system_time:  DateTime<Utc> = path.metadata()?.modified()?.into();
+        let system_time: DateTime<Utc> = path.metadata()?.modified()?.into();
 
         let file = Files {
             name: path.file_name().into_string().unwrap(),
-            path: fs::canonicalize(path.path())?.to_string_lossy().into_owned(),
-            file_type: if path.path().is_dir() { FileType::Directory } else { FileType::File },
+            path: fs::canonicalize(path.path())?
+                .to_string_lossy()
+                .into_owned(),
+            file_type: if path.path().is_dir() {
+                FileType::Directory
+            } else {
+                FileType::File
+            },
             last_modified: system_time.format("%d/%m/%Y %T").to_string(),
             size: human_bytes(path.metadata()?.len() as f64),
         };
@@ -78,6 +86,6 @@ pub fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::erro
     }
 
     let v = serde_json::to_value(path_info)?;
-    
+
     Ok(v)
 }
