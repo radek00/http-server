@@ -88,7 +88,7 @@ impl HttpServer {
         let args = clap::Command::new("Simple HTTP Server")
             .version("1.0")
             .author("radek00")
-            .about("Simple HTTP Srver. Implemented api endpoints allow for traversing directories, downloading and uploading files.")
+            .about("Multi-threaded HTTP server. Features include dynamic routing, static file serving, and file upload/download handling.")
             .arg(clap::Arg::new("port")
                 .short('p')
                 .value_parser(clap::value_parser!(u16))
