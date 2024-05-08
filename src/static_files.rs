@@ -24,3 +24,9 @@ impl StaticFiles {
         Ok(file)
     }
 }
+
+impl Default for StaticFiles {
+    fn default() -> Self {
+        Self::new()
+    }
+}

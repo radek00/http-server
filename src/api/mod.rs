@@ -34,14 +34,14 @@ pub fn create_routes() -> Router {
     });
     router.add_route("/api/files", "GET", |_, params| {
         let file_path = params.get("path").ok_or("Missing path parameter")?;
-        let file = File::open(&file_path)?;
+        let file = File::open(file_path)?;
         Ok(HttpResponse::new(
             Body::FileStream(
                 file,
                 file_path.split('/').last().ok_or("Path error")?.to_string(),
             ),
             Some(
-                mime_guess::from_path(&file_path)
+                mime_guess::from_path(file_path)
                     .first_or_octet_stream()
                     .to_string(),
             ),
