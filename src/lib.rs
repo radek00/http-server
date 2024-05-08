@@ -178,7 +178,7 @@ fn handle_connection(
         Some(content_type) => {
             if content_type.contains("multipart/form-data") {
                 let response =
-                    handle_multipart_file_upload(&content_type, &headers, &mut reader, &path)?;
+                    handle_multipart_file_upload(content_type, &headers, &mut reader, path)?;
                 return write_response(&response, stream);
             } else {
                 body = parse_body(&headers, &mut reader, &mut buffer)?;
@@ -193,7 +193,7 @@ fn handle_connection(
         .lock()
         .unwrap()
         .route(path, method, body.as_deref())?;
-    write_response(&response, &stream)?;
+    write_response(&response, stream)?;
 
     Ok(())
 }
@@ -201,13 +201,13 @@ fn handle_connection(
 fn parse_body<'a>(
     headers: &'a HashMap<&'a str, &'a str>,
     reader: &'a mut BufReader<&'a TcpStream>,
-    mut buffer: &'a mut Vec<u8>,
+    buffer: &'a mut Vec<u8>,
 ) -> Result<Option<Cow<'a, str>>, Box<dyn std::error::Error>> {
     match headers.get("Content-Length") {
         Some(content_length) => {
             let content_length = content_length.parse::<usize>()?;
             let mut body_reader = reader.take(content_length.try_into()?);
-            body_reader.read_to_end(&mut buffer)?;
+            body_reader.read_to_end(buffer)?;
             let body = String::from_utf8_lossy(&buffer[..]);
             Ok(Some(body))
         }
@@ -250,7 +250,7 @@ fn handle_multipart_file_upload(
     let filename = content_disposition
         .split("filename=\"")
         .nth(1)
-        .and_then(|s| s.split("\"").next())
+        .and_then(|s| s.split('\"').next())
         .ok_or("Error parsing file name")?;
     let target_path = format!("{}/{}", path, filename);
 

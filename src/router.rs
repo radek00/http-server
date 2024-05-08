@@ -57,7 +57,7 @@ impl Router {
         let pattern = format!(
             "^{}{}$",
             method,
-            path.replace("{", "(?P<").replace("}", ">[^/]+)")
+            path.replace('{', "(?P<").replace('}', ">[^/]+)")
         );
         let regex = Regex::new(&pattern).unwrap();
         self.routes.push(Route {
@@ -107,5 +107,11 @@ impl Router {
             None,
             404,
         ))
+    }
+}
+
+impl Default for Router {
+    fn default() -> Self {
+        Self::new()
     }
 }

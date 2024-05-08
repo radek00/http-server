@@ -25,7 +25,7 @@ pub struct ThreadPool {
 
 impl ThreadPool {
     pub fn build(size: usize) -> Result<ThreadPool, PoolCreationError> {
-        if size <= 0 {
+        if size == 0 {
             return Err(PoolCreationError);
         }
         let mut workers = Vec::with_capacity(size);
