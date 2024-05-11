@@ -41,14 +41,14 @@ trait ReadWrite : Read + Write + Send + 'static {}
 impl<T: Read + Write + Send + 'static> ReadWrite for T {}
 
 struct NetworkStream{
-    io_delegate : Box<dyn ReadWrite>
+    delegate : Box<dyn ReadWrite>
 }
 
 fn write_response(
     response: &HttpResponse,
     stream: &mut NetworkStream,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut stream = &mut *stream.io_delegate;
+    let mut stream = &mut *stream.delegate;
     let body = match &response.body {
         Body::Text(text) => text.clone(),
         Body::Json(json) => json.to_string(),
@@ -155,7 +155,7 @@ impl HttpServer {
             let tls_stream = tls_acceptor.accept(stream)?;
             let router_clone = Arc::clone(&arc_router);
             let mut network_stream = NetworkStream {
-                io_delegate: Box::new(tls_stream)
+                delegate: Box::new(tls_stream)
             };
 
 
@@ -180,7 +180,7 @@ fn handle_connection(
     stream: &mut NetworkStream,
     router: Arc<Mutex<Router>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut reader = BufReader::new(&mut*stream.io_delegate);
+    let mut reader = BufReader::new(&mut*stream.delegate);
 
     let mut request = String::new();
     loop {
