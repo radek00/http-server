@@ -1,9 +1,10 @@
+use native_tls::{Identity, TlsAcceptor};
 use serde_json::json;
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, Read, Write};
-use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::net::{SocketAddr, TcpListener};
 use std::sync::{Arc, Mutex};
 
 pub mod router;
@@ -26,10 +27,28 @@ pub use static_files::*;
 //     CONNECT,
 // }
 
+// pub trait NetworkStream: Read + Write {}
+
+// impl<S: Read + Write> NetworkStream for S {}
+
+// enum NetowrkStream {
+//     Tcp(TcpStream),
+//     Tls(TlsStream<TcpStream>)
+// }
+
+trait ReadWrite : Read + Write + Send + 'static {}
+
+impl<T: Read + Write + Send + 'static> ReadWrite for T {}
+
+struct NetworkStream{
+    io_delegate : Box<dyn ReadWrite>
+}
+
 fn write_response(
     response: &HttpResponse,
-    mut stream: &TcpStream,
+    stream: &mut NetworkStream,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    let mut stream = &mut *stream.io_delegate;
     let body = match &response.body {
         Body::Text(text) => text.clone(),
         Body::Json(json) => json.to_string(),
@@ -121,18 +140,33 @@ impl HttpServer {
         let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], self.port)))?;
         let pool = thread_pool::ThreadPool::build(self.threads)?;
 
+            // Load .pfx file containing the PKCS #12 archive
+        let identity_bytes = fs::read("./identity.pfx")?;
+
+        // Create an identity from the PKCS #12 archive
+        let identity = Identity::from_pkcs12(&identity_bytes, "password")?;
+
+        // Create a TLS acceptor with the identity
+        let tls_acceptor = TlsAcceptor::new(identity)?;
+
         let arc_router = Arc::new(Mutex::new(router));
         for stream in listener.incoming() {
             let stream = stream?;
+            let tls_stream = tls_acceptor.accept(stream)?;
             let router_clone = Arc::clone(&arc_router);
+            let mut network_stream = NetworkStream {
+                io_delegate: Box::new(tls_stream)
+            };
+
+
             pool.execute(move || {
-                handle_connection(&stream, router_clone).unwrap_or_else(|err| {
+                handle_connection(&mut network_stream, router_clone).unwrap_or_else(|err| {
                     eprintln!("{}", err);
                     let error_message = json!({
                         "error": format!("{}", err)
                     });
                     let error_response = HttpResponse::new(Body::Json(error_message), None, 500);
-                    write_response(&error_response, &stream).unwrap_or_else(|err| {
+                    write_response(&error_response, &mut network_stream).unwrap_or_else(|err| {
                         eprintln!("{}", err);
                     })
                 });
@@ -143,10 +177,10 @@ impl HttpServer {
 }
 
 fn handle_connection(
-    stream: &TcpStream,
+    stream: &mut NetworkStream,
     router: Arc<Mutex<Router>>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut reader = BufReader::new(stream);
+    let mut reader = BufReader::new(&mut*stream.io_delegate);
 
     let mut request = String::new();
     loop {
@@ -200,7 +234,7 @@ fn handle_connection(
 
 fn parse_body<'a>(
     headers: &'a HashMap<&'a str, &'a str>,
-    reader: &'a mut BufReader<&'a TcpStream>,
+    reader:  &mut BufReader<&mut dyn ReadWrite>,
     buffer: &'a mut Vec<u8>,
 ) -> Result<Option<Cow<'a, str>>, Box<dyn std::error::Error>> {
     match headers.get("Content-Length") {
@@ -218,7 +252,7 @@ fn parse_body<'a>(
 fn handle_multipart_file_upload(
     content_type: &str,
     headers: &HashMap<&str, &str>,
-    reader: &mut BufReader<&TcpStream>,
+    reader:  &mut BufReader<&mut dyn ReadWrite>,
     path: &str,
 ) -> Result<HttpResponse, Box<dyn std::error::Error>> {
     let idx = content_type
