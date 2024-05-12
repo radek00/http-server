@@ -37,56 +37,57 @@ pub use static_files::*;
 //     Tls(TlsStream<TcpStream>)
 // }
 
-trait ReadWrite : Read + Write + Send + 'static {}
+trait ReadWrite: Read + Write + Send + 'static {}
 
 impl<T: Read + Write + Send + 'static> ReadWrite for T {}
 
-struct NetworkStream{
-    delegate : Option<Box<dyn ReadWrite>>,
-    tls_acceptor: Option<TlsAcceptor>
-
+struct NetworkStream {
+    delegate: Option<Box<dyn ReadWrite>>,
+    tls_acceptor: Option<TlsAcceptor>,
 }
 
 impl NetworkStream {
-
-    pub fn new(cert_path: Option<&PathBuf>, cert_pass: Option<&String>) -> Result<NetworkStream, Box<dyn std::error::Error>> {
+    pub fn new(
+        cert_path: Option<&PathBuf>,
+        cert_pass: Option<&String>,
+    ) -> Result<NetworkStream, Box<dyn std::error::Error>> {
         match &cert_path {
             Some(path) => {
                 let identity_bytes = fs::read(path)?;
 
                 // Create an identity from the PKCS #12 archive
                 let identity = Identity::from_pkcs12(&identity_bytes, cert_pass.unwrap().as_str())?;
-        
+
                 // Create a TLS acceptor with the identity
                 let tls_acceptor = TlsAcceptor::new(identity)?;
 
                 Ok(NetworkStream {
                     tls_acceptor: Some(tls_acceptor),
-                    delegate: None
-                })
-            },
-            None => {
-                Ok(NetworkStream {
-                    tls_acceptor: None,
-                    delegate: None
+                    delegate: None,
                 })
             }
+            None => Ok(NetworkStream {
+                tls_acceptor: None,
+                delegate: None,
+            }),
         }
     }
-    pub fn get_stream(&mut self, stream: TcpStream) -> Result<&mut NetworkStream, Box<dyn std::error::Error>> {
+    pub fn get_stream(
+        &mut self,
+        stream: TcpStream,
+    ) -> Result<&mut NetworkStream, Box<dyn std::error::Error>> {
         match &self.tls_acceptor {
             Some(acceptor) => {
                 let tls_stream = acceptor.accept(stream)?;
                 self.delegate = Some(Box::new(tls_stream));
                 Ok(self)
-            },
+            }
             None => {
                 self.delegate = Some(Box::new(stream));
                 Ok(self)
             }
         }
     }
-    
 }
 
 fn write_response(
@@ -150,7 +151,7 @@ pub struct HttpServer {
     pub port: u16,
     pub threads: usize,
     pub cert_path: Option<PathBuf>,
-    pub cert_pass: Option<String>
+    pub cert_pass: Option<String>,
 }
 
 impl HttpServer {
@@ -181,14 +182,13 @@ impl HttpServer {
             .arg(clap::Arg::new("certpass")
                 .long("certpass")
                 .help("TLS/SSL certificate password"))
-            
             .get_matches();
 
         let http_server = HttpServer {
             port: *args.get_one::<u16>("port").unwrap(),
             threads: *args.get_one::<usize>("threads").unwrap(),
             cert_path: args.get_one::<PathBuf>("cert").cloned(),
-            cert_pass: args.get_one::<String>("certpass").cloned()
+            cert_pass: args.get_one::<String>("certpass").cloned(),
         };
 
         http_server
@@ -199,7 +199,8 @@ impl HttpServer {
         let pool = thread_pool::ThreadPool::build(self.threads)?;
 
         let arc_router = Arc::new(Mutex::new(router));
-        let mut network_stream = NetworkStream::new(self.cert_path.as_ref(), self.cert_pass.as_ref())?;
+        let mut network_stream =
+            NetworkStream::new(self.cert_path.as_ref(), self.cert_pass.as_ref())?;
         for stream in listener.incoming() {
             let mut stream = network_stream.get_stream(stream?)?.delegate.take().unwrap();
             let router_clone = Arc::clone(&arc_router);
@@ -279,7 +280,7 @@ fn handle_connection(
 
 fn parse_body<'a>(
     headers: &'a HashMap<&'a str, &'a str>,
-    reader:  BufReader<&mut Box<dyn ReadWrite>>,
+    reader: BufReader<&mut Box<dyn ReadWrite>>,
     buffer: &'a mut Vec<u8>,
 ) -> Result<Option<Cow<'a, str>>, Box<dyn std::error::Error>> {
     match headers.get("Content-Length") {
@@ -297,7 +298,7 @@ fn parse_body<'a>(
 fn handle_multipart_file_upload(
     content_type: &str,
     headers: &HashMap<&str, &str>,
-    reader:  &mut BufReader<&mut Box<dyn ReadWrite>>,
+    reader: &mut BufReader<&mut Box<dyn ReadWrite>>,
     path: &str,
 ) -> Result<HttpResponse, Box<dyn std::error::Error>> {
     let idx = content_type
