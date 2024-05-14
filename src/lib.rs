@@ -48,10 +48,8 @@ impl NetworkStream {
             Some(path) => {
                 let identity_bytes = fs::read(path)?;
 
-                // Create an identity from the PKCS #12 archive
                 let identity = Identity::from_pkcs12(&identity_bytes, cert_pass.unwrap().as_str())?;
 
-                // Create a TLS acceptor with the identity
                 let tls_acceptor = TlsAcceptor::new(identity)?;
 
                 Ok(NetworkStream {
