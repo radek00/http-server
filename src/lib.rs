@@ -48,7 +48,7 @@ impl NetworkStream {
             Some(path) => {
                 let identity_bytes = fs::read(path)?;
 
-                let identity = Identity::from_pkcs12(&identity_bytes, cert_pass.unwrap().as_str())?;
+                let identity = Identity::from_pkcs12(&identity_bytes, cert_pass.unwrap())?;
 
                 let tls_acceptor = TlsAcceptor::new(identity)?;
 
@@ -111,10 +111,10 @@ impl HttpServer {
                 .value_parser(clap::value_parser!(PathBuf))
                 .required(false)
                 .long("cert")
-                .requires("certpass")
                 .help("TLS/SSL certificate"))
             .arg(clap::Arg::new("certpass")
                 .long("certpass")
+                .default_value("")
                 .help("TLS/SSL certificate password"))
             .get_matches();
 
