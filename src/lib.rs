@@ -92,7 +92,7 @@ pub struct HttpServer {
 
 impl HttpServer {
     pub fn build() -> HttpServer {
-        let args = clap::Command::new("Simple HTTP Server")
+        let mut args = clap::Command::new("Simple HTTP Server")
             .version("1.0")
             .author("radek00")
             .about("Multi-threaded HTTP server. Features include dynamic routing, static file serving, and file upload/download handling.")
@@ -120,14 +120,12 @@ impl HttpServer {
                 .help("TLS/SSL certificate password"))
             .get_matches();
 
-        let http_server = HttpServer {
-            port: *args.get_one::<u16>("port").unwrap(),
-            threads: *args.get_one::<usize>("threads").unwrap(),
-            cert_path: args.get_one::<PathBuf>("cert").cloned(),
-            cert_pass: args.get_one::<String>("certpass").cloned(),
-        };
-
-        http_server
+        HttpServer {
+            port: args.remove_one::<u16>("port").unwrap(),
+            threads: args.remove_one::<usize>("threads").unwrap(),
+            cert_path: args.remove_one::<PathBuf>("cert"),
+            cert_pass: args.remove_one::<String>("certpass"),
+        }
     }
     pub fn run(&self, router: Router) -> Result<(), Box<dyn std::error::Error>> {
         println!("Server is running on port {}", self.port);
