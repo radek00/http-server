@@ -8,10 +8,12 @@ use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
-pub mod router;
-pub mod static_files;
+mod http_response;
+mod router;
+mod static_files;
 mod thread_pool;
 
+pub use http_response::*;
 pub use router::*;
 pub use static_files::*;
 
@@ -28,16 +30,7 @@ pub use static_files::*;
 //     CONNECT,
 // }
 
-// pub trait NetworkStream: Read + Write {}
-
-// impl<S: Read + Write> NetworkStream for S {}
-
-// enum NetowrkStream {
-//     Tcp(TcpStream),
-//     Tls(TlsStream<TcpStream>)
-// }
-
-trait ReadWrite: Read + Write + Send + 'static {}
+pub trait ReadWrite: Read + Write + Send + 'static {}
 
 impl<T: Read + Write + Send + 'static> ReadWrite for T {}
 
@@ -88,63 +81,6 @@ impl NetworkStream {
             }
         }
     }
-}
-
-fn write_response(
-    response: &HttpResponse,
-    stream: &mut Box<dyn ReadWrite>,
-) -> Result<(), Box<dyn std::error::Error>> {
-    let mut stream = &mut *stream;
-    let body = match &response.body {
-        Body::Text(text) => text.clone(),
-        Body::Json(json) => json.to_string(),
-        Body::StaticFile(file, _) => {
-            let headers = format!(
-                "HTTP/1.1 {}\r\n\
-                Content-Type: {}\r\n\
-                Connection: keep-alive\r\n\
-                Server: RustHttpServer/1.0\r\n\
-                \r\n",
-                response.status_code, response.content_type
-            );
-            stream.write_all(headers.as_bytes())?;
-            stream.write_all(file)?;
-            return Ok(());
-        }
-        Body::FileStream(file, name) => {
-            let headers = format!(
-                "HTTP/1.1 {}\r\n\
-                Content-Type: {}\r\n\
-                Content-Disposition: attachment; filename=\"{}\"\r\n\
-                Connection: keep-alive\r\n\
-                Server: RustHttpServer/1.0\r\n\
-                \r\n",
-                response.status_code, response.content_type, name
-            );
-            stream.write_all(headers.as_bytes())?;
-            let mut reader = BufReader::new(file);
-            io::copy(&mut reader, &mut stream)?;
-            return Ok(());
-        }
-    };
-
-    let response = format!(
-        "HTTP/1.1 {}\r\n\
-        Content-Type: {}\r\n\
-        Content-Length: {}\r\n\
-        Connection: keep-alive\r\n\
-        Server: RustHttpServer/1.0\r\n\
-        \r\n\
-        {}",
-        response.status_code,
-        response.content_type,
-        body.len(),
-        body
-    );
-
-    stream.write_all(response.as_bytes())?;
-
-    Ok(())
 }
 
 pub struct HttpServer {
@@ -211,10 +147,11 @@ impl HttpServer {
                     let error_message = json!({
                         "error": format!("{}", err)
                     });
-                    let error_response = HttpResponse::new(Body::Json(error_message), None, 500);
-                    write_response(&error_response, &mut stream).unwrap_or_else(|err| {
-                        eprintln!("{}", err);
-                    })
+                    HttpResponse::new(Body::Json(error_message), None, 500)
+                        .write_response(&mut stream)
+                        .unwrap_or_else(|err| {
+                            eprintln!("{}", err);
+                        });
                 });
             })?;
         }
@@ -257,9 +194,8 @@ fn handle_connection(
     match headers.get("Content-Type") {
         Some(content_type) => {
             if content_type.contains("multipart/form-data") {
-                let response =
-                    handle_multipart_file_upload(content_type, &headers, &mut reader, path)?;
-                return write_response(&response, stream);
+                return handle_multipart_file_upload(content_type, &headers, &mut reader, path)?
+                    .write_response(stream);
             } else {
                 body = parse_body(&headers, reader, &mut buffer)?;
             }
@@ -269,12 +205,11 @@ fn handle_connection(
         }
     }
 
-    let response = router
+    router
         .lock()
         .unwrap()
-        .route(path, method, body.as_deref())?;
-    write_response(&response, stream)?;
-
+        .route(path, method, body.as_deref())?
+        .write_response(stream)?;
     Ok(())
 }
 
