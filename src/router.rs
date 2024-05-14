@@ -1,29 +1,8 @@
 use regex::Regex;
 use serde_json::json;
-use std::{collections::HashMap, fs::File};
+use std::collections::HashMap;
 
-pub enum Body {
-    Text(String),
-    Json(serde_json::Value),
-    FileStream(File, String),
-    StaticFile(&'static [u8], String),
-}
-
-pub struct HttpResponse {
-    pub content_type: String,
-    pub body: Body,
-    pub status_code: u16,
-}
-
-impl HttpResponse {
-    pub fn new(body: Body, content_type: Option<String>, status_code: u16) -> Self {
-        HttpResponse {
-            content_type: content_type.unwrap_or_else(|| "application/json".to_string()),
-            body,
-            status_code,
-        }
-    }
-}
+use crate::{Body, HttpResponse};
 
 type Handler = Box<
     dyn Fn(Option<&str>, HashMap<&str, &str>) -> Result<HttpResponse, Box<dyn std::error::Error>>
