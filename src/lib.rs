@@ -134,7 +134,11 @@ impl HttpServer {
         let mut network_stream =
             NetworkStream::new(self.cert_path.as_ref(), self.cert_pass.as_ref())?;
         for stream in listener.incoming() {
-            let mut stream = network_stream.get_stream(stream?)?.delegate.take().unwrap();
+            let Ok(stream) = network_stream.get_stream(stream?) else {
+                continue;
+            };
+            let mut stream = stream.delegate.take().unwrap();
+
             let router_clone = Arc::clone(&arc_router);
 
             pool.execute(move || {
@@ -170,7 +174,6 @@ fn handle_connection(
             break;
         }
     }
-
     let http_parts: Vec<&str> = request.split("\r\n\r\n").collect();
     let request_lines: Vec<&str> = http_parts[0].lines().collect();
 
