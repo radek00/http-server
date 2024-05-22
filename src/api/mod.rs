@@ -6,7 +6,7 @@ use self::utils::{list_directory, split_path};
 mod utils;
 
 pub fn create_routes() -> Router {
-    let mut router = Router::new();
+    let mut router = Router::new().with_logger();
 
     router.add_route("/{file}?", "GET", |_, params| {
         let static_files = StaticFiles::new(); // Create a new instance of StaticFiles
