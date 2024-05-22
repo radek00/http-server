@@ -112,7 +112,7 @@ impl Router {
         method: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(logger) = &self.logger {
-            logger.log_response(status_code, path, method)?;
+            logger.log(status_code, path, method)?;
         }
         Ok(())
     }
