@@ -2,13 +2,15 @@ use native_tls::{Identity, TlsAcceptor};
 use serde_json::json;
 use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fmt;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 mod http_response;
+mod logger;
 mod router;
 mod static_files;
 mod thread_pool;
@@ -29,6 +31,21 @@ pub use static_files::*;
 //     TRACE,
 //     CONNECT,
 // }
+
+#[derive(Debug)]
+struct ServerError {
+    message: String,
+    method: String,
+    path: String,
+}
+
+impl fmt::Display for ServerError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl std::error::Error for ServerError {}
 
 pub trait ReadWrite: Read + Write + Send + 'static {}
 
@@ -103,7 +120,7 @@ impl HttpServer {
             .arg(clap::Arg::new("threads")
                 .short('t')
                 .value_parser(clap::value_parser!(usize))
-                .default_value("4")
+                .default_value("12")
                 .long("threads")
                 .help("Sets the number of threads"))
             .arg(clap::Arg::new("cert")
@@ -130,7 +147,7 @@ impl HttpServer {
         let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], self.port)))?;
         let pool = thread_pool::ThreadPool::build(self.threads)?;
 
-        let arc_router = Arc::new(Mutex::new(router));
+        let arc_router = Arc::new(router);
         let mut network_stream =
             NetworkStream::new(self.cert_path.as_ref(), self.cert_pass.as_ref())?;
         for stream in listener.incoming() {
@@ -140,19 +157,28 @@ impl HttpServer {
             let mut stream = stream.delegate.take().unwrap();
 
             let router_clone = Arc::clone(&arc_router);
-
             pool.execute(move || {
-                handle_connection(&mut stream, router_clone).unwrap_or_else(|err| {
-                    eprintln!("{}", err);
-                    let error_message = json!({
-                        "error": format!("{}", err)
-                    });
-                    HttpResponse::new(Body::Json(error_message), None, 500)
-                        .write_response(&mut stream)
-                        .unwrap_or_else(|err| {
-                            eprintln!("{}", err);
+                handle_connection(&mut stream, &router_clone)
+                    .unwrap_or_else(|err| {
+                        // eprintln!("{}", err);
+                        let message = err.to_string();
+                        let server_error = err.downcast::<ServerError>().ok();
+
+                        if let Some(server_error) = server_error {
+                            router_clone
+                                .log_response(500, &server_error.path, &server_error.method)
+                                .unwrap();
+                        }
+
+                        let error_message = json!({
+                            "error": format!("{}", message),
                         });
-                });
+                        HttpResponse::new(Body::Json(error_message), None, 500)
+                    })
+                    .write_response(&mut stream)
+                    .unwrap_or_else(|err| {
+                        eprintln!("{}", err);
+                    });
             })?;
         }
         Ok(())
@@ -161,8 +187,8 @@ impl HttpServer {
 
 fn handle_connection(
     stream: &mut Box<dyn ReadWrite>,
-    router: Arc<Mutex<Router>>,
-) -> Result<(), Box<dyn std::error::Error>> {
+    router: &Arc<Router>,
+) -> Result<HttpResponse, Box<dyn std::error::Error>> {
     let mut reader = BufReader::new(&mut *stream);
 
     let mut request = String::new();
@@ -190,26 +216,33 @@ fn handle_connection(
 
     let mut buffer = Vec::new();
     let body;
+
+    let error_mapper = |e: Box<dyn std::error::Error>| ServerError {
+        message: e.to_string(),
+        method: method.to_string(),
+        path: path.to_string(),
+    };
+
     match headers.get("Content-Type") {
         Some(content_type) => {
             if content_type.contains("multipart/form-data") {
-                return handle_multipart_file_upload(content_type, &headers, &mut reader, path)?
-                    .write_response(stream);
+                return Ok(
+                    handle_multipart_file_upload(content_type, &headers, &mut reader, path)
+                        .map_err(error_mapper)?,
+                );
             } else {
-                body = parse_body(&headers, reader, &mut buffer)?;
+                body = parse_body(&headers, reader, &mut buffer).map_err(error_mapper)?;
             }
         }
         None => {
-            body = parse_body(&headers, reader, &mut buffer)?;
+            body = parse_body(&headers, reader, &mut buffer).map_err(error_mapper)?;
         }
     }
 
-    router
-        .lock()
-        .unwrap()
-        .route(path, method, body.as_deref())?
-        .write_response(stream)?;
-    Ok(())
+    let response = router
+        .route(path, method, body.as_deref())
+        .map_err(error_mapper)?;
+    Ok(response)
 }
 
 fn parse_body<'a>(

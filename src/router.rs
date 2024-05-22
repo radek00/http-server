@@ -2,7 +2,7 @@ use regex::Regex;
 use serde_json::json;
 use std::collections::HashMap;
 
-use crate::{Body, HttpResponse};
+use crate::{logger::Logger, Body, HttpResponse};
 
 type Handler = Box<
     dyn Fn(Option<&str>, HashMap<&str, &str>) -> Result<HttpResponse, Box<dyn std::error::Error>>
@@ -16,11 +16,19 @@ pub struct Route {
 }
 pub struct Router {
     routes: Vec<Route>,
+    logger: Option<Logger>,
 }
 
 impl Router {
     pub fn new() -> Self {
-        Router { routes: Vec::new() }
+        Router {
+            routes: Vec::new(),
+            logger: None,
+        }
+    }
+    pub fn with_logger(mut self) -> Self {
+        self.logger = Some(Logger::new());
+        self
     }
 
     pub fn add_route<F>(&mut self, path: &str, method: &str, handler: F)
@@ -74,23 +82,44 @@ impl Router {
                         }
                     }
                     let response = (route.handler)(data, param_dict)?;
+                    // self.logger.log(&format!(
+                    //     "Route found for path: {} with status code: {}",
+                    //     path, response.status_code
+                    // ))?;
+
+                    self.log_response(response.status_code, stripped_path[0], method)?;
 
                     return Ok(response);
                 }
                 None => continue,
             }
         }
-        println!("No route found for path: {}", path);
-        Ok(HttpResponse::new(
+        //println!("No route found for path: {}", path);
+        let error_response = HttpResponse::new(
             Body::Json(json!({"message": format!("No route found for path {}", path)})),
             None,
             404,
-        ))
+        );
+
+        self.log_response(error_response.status_code, stripped_path[0], method)?;
+
+        Ok(error_response)
+    }
+    pub fn log_response(
+        &self,
+        status_code: u16,
+        path: &str,
+        method: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        if let Some(logger) = &self.logger {
+            logger.log_response(status_code, path, method)?;
+        }
+        Ok(())
     }
 }
 
-impl Default for Router {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+// impl Default for Router {
+//     fn default() -> Self {
+//         Self::new(Some)
+//     }
+// }
