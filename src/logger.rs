@@ -30,7 +30,7 @@ impl Logger {
         let time = chrono::offset::Local::now()
             .format("%Y-%m-%d %H:%M:%S")
             .to_string();
-        write!(&mut buffer, "{}", format!("{} - ", time))?;
+        write!(&mut buffer, "{} - ", time)?;
 
         buffer.set_color(ColorSpec::new().set_fg(Some(get_status_code_color(status_code))))?;
         write!(&mut buffer, "{}", status_code)?;
