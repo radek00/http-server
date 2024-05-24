@@ -101,3 +101,9 @@ impl Logger {
         Ok(())
     }
 }
+
+impl Default for Logger {
+    fn default() -> Self {
+        Logger::new()
+    }
+}

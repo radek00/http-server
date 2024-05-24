@@ -27,7 +27,7 @@ pub struct Route {
 }
 pub struct Router {
     routes: Vec<Route>,
-    logger: Option<Logger>,
+    pub logger: Option<Logger>,
 }
 
 impl Router {
@@ -93,10 +93,6 @@ impl Router {
                         }
                     }
                     let response = (route.handler)(data, param_dict)?;
-                    // self.logger.log(&format!(
-                    //     "Route found for path: {} with status code: {}",
-                    //     path, response.status_code
-                    // ))?;
 
                     self.log_response(response.status_code, stripped_path[0], method)?;
 
@@ -105,7 +101,6 @@ impl Router {
                 None => continue,
             }
         }
-        //println!("No route found for path: {}", path);
         let error_response = HttpResponse::new(
             Body::Json(json!({"message": format!("No route found for path {}", path)})),
             None,
