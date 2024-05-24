@@ -8,6 +8,7 @@ use std::io::{self, BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::Arc;
+use termcolor::Color;
 
 mod http_response;
 mod logger;
@@ -149,7 +150,7 @@ impl HttpServer {
         self
     }
     pub fn run(self) -> Result<(), Box<dyn std::error::Error>> {
-        println!("Server is running on port {}", self.port);
+        self.print_server_info();
         let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], self.port)))?;
         let pool = thread_pool::ThreadPool::build(self.threads)?;
 
@@ -166,7 +167,6 @@ impl HttpServer {
             pool.execute(move || {
                 handle_connection(&mut stream, &router_clone)
                     .unwrap_or_else(|err| {
-                        // eprintln!("{}", err);
                         let message = err.to_string();
                         let server_error = err.downcast::<ServerError>().ok();
 
@@ -188,6 +188,43 @@ impl HttpServer {
             })?;
         }
         Ok(())
+    }
+    fn print_server_info(&self) {
+        if let Some(logger) = &self.router.logger {
+            let https = match self.cert_path {
+                Some(_) => String::from("Enabled"),
+                None => String::from("Disabled"),
+            };
+            logger.log_stdout(
+                r#"
+
+ ========================================================================================================
+ 
+   _____ _                 _        _    _ _______ _______ _____     _____                          
+  / ____(_)               | |      | |  | |__   __|__   __|  __ \   / ____|                         
+ | (___  _ _ __ ___  _ __ | | ___  | |__| |  | |     | |  | |__) | | (___   ___ _ ____   _____ _ __ 
+  \___ \| | '_ ` _ \| '_ \| |/ _ \ |  __  |  | |     | |  |  ___/   \___ \ / _ \ '__\ \ / / _ \ '__|
+  ____) | | | | | | | |_) | |  __/ | |  | |  | |     | |  | |       ____) |  __/ |   \ V /  __/ |   
+ |_____/|_|_| |_| |_| .__/|_|\___| |_|  |_|  |_|     |_|  |_|      |_____/ \___|_|    \_/ \___|_|   
+                    | |                                                                             
+                    |_|                                                                             
+
+=========================================================================================================
+
+Port: {}
+Threads: {}
+HTTPS: {}
+
+====================
+Logs:"#,
+                vec![
+                    (self.port.to_string(), Some(Color::Yellow)),
+                    (self.threads.to_string(), Some(Color::Yellow)),
+                    (https, Some(Color::Yellow)),
+                ],
+            )
+            .unwrap();
+        }
     }
 }
 
