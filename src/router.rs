@@ -1,7 +1,7 @@
 use regex::Regex;
 use serde_json::json;
 use std::collections::HashMap;
-use termcolor::{Color, ColorSpec};
+use termcolor::Color;
 
 use crate::{logger::Logger, Body, HttpResponse};
 
@@ -135,7 +135,7 @@ impl Router {
                 (path.to_string(), Some(Color::White)),
             ];
 
-            logger.print("{} - {} - {} {}", args, true)?;
+            logger.log_stdout("{} - {} - {} {}", args)?;
         }
         Ok(())
     }
