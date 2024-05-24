@@ -1,8 +1,19 @@
 use regex::Regex;
 use serde_json::json;
 use std::collections::HashMap;
+use termcolor::{Color, ColorSpec};
 
 use crate::{logger::Logger, Body, HttpResponse};
+
+fn get_status_code_color(status_code: u16) -> Color {
+    match status_code {
+        100..=199 => Color::Cyan,
+        200..=299 => Color::Green,
+        300..=399 => Color::Yellow,
+        400..=499 => Color::Red,
+        _ => Color::Magenta,
+    }
+}
 
 type Handler = Box<
     dyn Fn(Option<&str>, HashMap<&str, &str>) -> Result<HttpResponse, Box<dyn std::error::Error>>
@@ -112,7 +123,19 @@ impl Router {
         method: &str,
     ) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(logger) = &self.logger {
-            logger.log(status_code, path, method)?;
+            let time_string = chrono::offset::Local::now()
+                .format("%Y-%m-%d %H:%M:%S")
+                .to_string();
+            let status_code_color = get_status_code_color(status_code);
+
+            let args = vec![
+                (time_string, Some(Color::White)),
+                (status_code.to_string(), Some(status_code_color)),
+                (method.to_string(), Some(Color::White)),
+                (path.to_string(), Some(Color::White)),
+            ];
+
+            logger.print("{} - {} - {} {}", args, true)?;
         }
         Ok(())
     }
