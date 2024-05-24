@@ -8,9 +8,8 @@ struct Example {
 }
 
 fn main() {
-    let router = api::create_routes();
+    let mut http_server = HttpServer::build().with_logger();
+    api::create_routes(&mut http_server.router);
 
-    HttpServer::build()
-        .run(router)
-        .expect("Starting server failed");
+    http_server.run().expect("Starting server failed");
 }
