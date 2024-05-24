@@ -103,6 +103,7 @@ pub struct HttpServer {
     pub threads: usize,
     pub cert_path: Option<PathBuf>,
     pub cert_pass: Option<String>,
+    pub router: Router,
 }
 
 impl HttpServer {
@@ -140,14 +141,19 @@ impl HttpServer {
             threads: args.remove_one::<usize>("threads").unwrap(),
             cert_path: args.remove_one::<PathBuf>("cert"),
             cert_pass: args.remove_one::<String>("certpass"),
+            router: Router::new(),
         }
     }
-    pub fn run(&self, router: Router) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn with_logger(mut self) -> Self {
+        self.router = self.router.with_logger();
+        self
+    }
+    pub fn run(self) -> Result<(), Box<dyn std::error::Error>> {
         println!("Server is running on port {}", self.port);
         let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], self.port)))?;
         let pool = thread_pool::ThreadPool::build(self.threads)?;
 
-        let arc_router = Arc::new(router);
+        let arc_router = Arc::new(self.router);
         let mut network_stream =
             NetworkStream::new(self.cert_path.as_ref(), self.cert_pass.as_ref())?;
         for stream in listener.incoming() {
