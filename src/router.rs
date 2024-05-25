@@ -30,8 +30,6 @@ pub struct Router {
     logger: Option<Arc<Logger>>,
 }
 
-// use arc to share between threds
-
 impl Router {
     pub fn new() -> Self {
         Router {
