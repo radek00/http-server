@@ -2,6 +2,14 @@
 name = "http-server"
 version = "0.1.0"
 edition = "2021"
+authors = ["radek00"]
+license = "MIT"
+description = "Simple HTTP Server"
+readme = "README.md"
+homepage = "https://github.com/radek00/http-server"
+repository = "https://github.com/radek00/http-server"
+keywords = ["http", "server", "cli"]
+categories = ["command-line-utilities"]
 exclude = [
     ".git/*",
     ".github/*",
