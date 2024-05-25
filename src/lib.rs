@@ -180,7 +180,7 @@ impl HttpServer {
             let mut stream = stream.delegate.take().unwrap();
 
             let router_clone = Arc::clone(&arc_router);
-            let logger_clone = self.logger.as_ref().map(Arc::clone);
+            let logger_clone = self.logger.clone();
 
             pool.execute(move || {
                 handle_connection(&mut stream, &router_clone)
