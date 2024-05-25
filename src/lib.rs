@@ -1,3 +1,4 @@
+use logger::Logger;
 use native_tls::{Identity, TlsAcceptor};
 use serde_json::json;
 use std::borrow::Cow;
@@ -105,6 +106,7 @@ pub struct HttpServer {
     pub cert_path: Option<PathBuf>,
     pub cert_pass: Option<String>,
     pub router: Router,
+    logger: Option<Arc<Logger>>,
 }
 
 impl HttpServer {
@@ -143,10 +145,14 @@ impl HttpServer {
             cert_path: args.remove_one::<PathBuf>("cert"),
             cert_pass: args.remove_one::<String>("certpass"),
             router: Router::new(),
+            logger: None,
         }
     }
     pub fn with_logger(mut self) -> Self {
-        self.router = self.router.with_logger();
+        self.logger = Some(Arc::new(Logger::new()));
+        self.router = self
+            .router
+            .with_logger(Some(Arc::clone(self.logger.as_ref().unwrap())));
         self
     }
     pub fn run(self) -> Result<(), Box<dyn std::error::Error>> {
@@ -164,6 +170,8 @@ impl HttpServer {
             let mut stream = stream.delegate.take().unwrap();
 
             let router_clone = Arc::clone(&arc_router);
+            let logger_clone = self.logger.as_ref().map(Arc::clone);
+
             pool.execute(move || {
                 handle_connection(&mut stream, &router_clone)
                     .unwrap_or_else(|err| {
@@ -183,14 +191,18 @@ impl HttpServer {
                     })
                     .write_response(&mut stream)
                     .unwrap_or_else(|err| {
-                        eprintln!("{}", err);
+                        if let Some(logger) = logger_clone {
+                            logger
+                                .log_stderr("Error: {}", vec![(err.to_string(), Some(Color::Red))])
+                                .unwrap();
+                        }
                     });
             })?;
         }
         Ok(())
     }
     fn print_server_info(&self) {
-        if let Some(logger) = &self.router.logger {
+        if let Some(logger) = &self.logger {
             let https = match self.cert_path {
                 Some(_) => String::from("Enabled"),
                 None => String::from("Disabled"),
