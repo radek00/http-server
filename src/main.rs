@@ -1,4 +1,4 @@
-use http_server::HttpServer;
+use scratch_server::HttpServer;
 use serde::{Deserialize, Serialize};
 
 mod api;
