@@ -1,6 +1,6 @@
 use regex::Regex;
 use serde_json::json;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 use termcolor::Color;
 
 use crate::{logger::Logger, Body, HttpResponse};
@@ -27,8 +27,10 @@ pub struct Route {
 }
 pub struct Router {
     routes: Vec<Route>,
-    pub logger: Option<Logger>,
+    logger: Option<Arc<Logger>>,
 }
+
+// use arc to share between threds
 
 impl Router {
     pub fn new() -> Self {
@@ -37,8 +39,8 @@ impl Router {
             logger: None,
         }
     }
-    pub fn with_logger(mut self) -> Self {
-        self.logger = Some(Logger::new());
+    pub fn with_logger(mut self, logger: Option<Arc<Logger>>) -> Self {
+        self.logger = logger;
         self
     }
 
