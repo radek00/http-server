@@ -1,4 +1,4 @@
-use http_server::{Body, HttpResponse, Router, StaticFiles};
+use scratch_server::{Body, HttpResponse, Router, StaticFiles};
 use std::fs::File;
 
 use self::utils::{list_directory, split_path};
