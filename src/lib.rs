@@ -137,16 +137,26 @@ impl HttpServer {
                 .long("certpass")
                 .default_value("")
                 .help("TLS/SSL certificate password"))
+            .arg(clap::Arg::new("silent")
+                .action(clap::ArgAction::SetTrue)
+                .short('s')
+                .long("silent")
+                .help("Disable logging"))
             .get_matches();
 
-        HttpServer {
+        let mut server = HttpServer {
             port: args.remove_one::<u16>("port").unwrap(),
             threads: args.remove_one::<usize>("threads").unwrap(),
             cert_path: args.remove_one::<PathBuf>("cert"),
             cert_pass: args.remove_one::<String>("certpass"),
             router: Router::new(),
             logger: None,
+        };
+        if !args.get_flag("silent") {
+            println!("Silent mode enabled");
+            server = server.with_logger();
         }
+        server
     }
     pub fn with_logger(mut self) -> Self {
         self.logger = Some(Arc::new(Logger::new()));
