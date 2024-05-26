@@ -45,5 +45,15 @@ jobs:
           target: ${{ matrix.platform.target }}
           args: "--locked --release"
           strip: true
+        
+      - name: Publish release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.name }}
+          path: ${{ matrix.name }}
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.name }}
 
     # more packaging stuff goes here ...
