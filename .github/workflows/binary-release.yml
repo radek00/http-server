@@ -45,9 +45,14 @@ jobs:
           target: ${{ matrix.platform.target }}
           args: "--locked --release"
           strip: true
+      - name: Publish release artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: scratch-server-${{ matrix.os_name }}
+          path: "scratch-server-*"
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: ./target/${{ matrix.platform.target }}/release/${{ matrix.platform.name }}
+          files: "scratch-server-*"
 
     # more packaging stuff goes here ...
