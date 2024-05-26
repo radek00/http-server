@@ -16,7 +16,7 @@ jobs:
             target: x86_64-unknown-freebsd
             bin: scratch-server
             name: scratch-server-FreeBSD-x86_64.tar.gz
-            command: both
+            command: build
 
           - release_for: Windows-x86_64
             os: windows-latest
