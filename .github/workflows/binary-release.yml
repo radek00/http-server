@@ -48,6 +48,6 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: ./target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}
+          files: ./target/${{ matrix.platform.target }}/release/${{ matrix.platform.name }}
 
     # more packaging stuff goes here ...
