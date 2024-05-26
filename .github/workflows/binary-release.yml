@@ -14,7 +14,7 @@ jobs:
           - release_for: FreeBSD-x86_64
             os: ubuntu-20.04
             target: x86_64-unknown-freebsd
-            bin: scratch-server
+            bin: scratch-server-FreeBSD-x86_64.tar.gz
             name: scratch-server-FreeBSD-x86_64.tar.gz
             command: build
 
@@ -28,7 +28,7 @@ jobs:
           - release_for: macOS-x86_64
             os: macOS-latest
             target: x86_64-apple-darwin
-            bin: scratch-server
+            bin: scratch-server-Darwin-x86_64.tar.gz
             name: scratch-server-Darwin-x86_64.tar.gz
             command: both
 
@@ -45,14 +45,9 @@ jobs:
           target: ${{ matrix.platform.target }}
           args: "--locked --release"
           strip: true
-      - name: Publish release artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: scratch-server-${{ matrix.os_name }}
-          path: "scratch-server-*"
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: "scratch-server-*"
+          files: ./target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }}
 
     # more packaging stuff goes here ...
