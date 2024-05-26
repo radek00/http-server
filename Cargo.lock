@@ -200,20 +200,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "00b0228411908ca8685dba7fc2cdd70ec9990a6e753e89b6ac91a84c40fbaf4b"
 
 [[package]]
-name = "http-server"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "clap",
- "mime_guess",
- "native-tls",
- "regex",
- "serde",
- "serde_json",
- "termcolor",
-]
-
-[[package]]
 name = "iana-time-zone"
 version = "0.1.60"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -459,6 +445,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fbc91545643bcf3a0bbb6569265615222618bdf33ce4ffbbd13c4bbd4c093534"
 dependencies = [
  "windows-sys",
+]
+
+[[package]]
+name = "scratch-server"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "clap",
+ "mime_guess",
+ "native-tls",
+ "regex",
+ "serde",
+ "serde_json",
+ "termcolor",
 ]
 
 [[package]]
