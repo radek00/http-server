@@ -38,6 +38,18 @@ jobs:
             bin: scratch-server
             name: scratch-server-Darwin-x86_64.tar.gz
             command: both
+          - release_for: Linux-aarch64
+            os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            bin: scratch-server
+            name: scratch-server-Linux-aarch64.tar.gz
+            command: both
+          - release_for: Android-aarch64
+            os: ubuntu-latest
+            target: aarch64-linux-android
+            bin: scratch-server
+            name: scratch-server-Android-aarch64.tar.gz
+            command: both
 
     runs-on: ${{ matrix.platform.os }}
     steps:
@@ -80,6 +92,3 @@ jobs:
         with:
           files: |
             ${{ env.ASSET }}
-
-
-    # more packaging stuff goes here ...
