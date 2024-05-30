@@ -49,7 +49,6 @@ pub fn split_path(path: &str) -> Result<serde_json::Value, Box<dyn std::error::E
     let mut appended = String::new();
     let separator = std::path::MAIN_SEPARATOR.to_string();
     for (_, part) in current_path.components().enumerate() {
-        println!("{:?}", part);
         match part {
             Component::RootDir => {
                 if appended.is_empty() {

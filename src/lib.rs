@@ -153,7 +153,6 @@ impl HttpServer {
             logger: None,
         };
         if !args.get_flag("silent") {
-            println!("Silent mode enabled");
             server = server.with_logger();
         }
         server
