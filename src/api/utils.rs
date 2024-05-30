@@ -1,4 +1,4 @@
-use std::{fs, path::Path};
+use std::{fs, path::{Component, Path, PathBuf}};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -45,23 +45,41 @@ fn human_bytes<T: Into<f64>>(bytes: T) -> String {
 
 pub fn split_path(path: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
     let current_path = Path::new(path).canonicalize()?;
+    println!("{:?}", current_path);
     let mut parts = Vec::new();
     let mut appended = String::new();
-    for (idx, part) in current_path.iter().enumerate() {
-        appended.push_str(&format!(
-            "{}{}",
-            part.to_string_lossy(),
-            if idx == 0 { "" } else { "/" }
-        ));
-        parts.push(PathParts {
-            part_name: part.to_string_lossy().to_string(),
-            full_path: appended.clone(),
-        });
+    //appended.push_str(&std::path::MAIN_SEPARATOR.to_string());
+    for (_, part) in current_path.components().enumerate() {
+        println!("{:?}", part);
+        match part {
+            Component::Prefix(_) => continue,
+            Component::RootDir => {
+                appended.push_str(&std::path::MAIN_SEPARATOR.to_string());
+                parts.push(PathParts {
+                    part_name: std::path::MAIN_SEPARATOR.to_string(),
+                    full_path: appended.clone(),
+                });
+            },
+            _ => {
+                appended.push_str(&format!(
+                    "{}{}",
+                    part.as_os_str().to_string_lossy(),
+                    std::path::MAIN_SEPARATOR.to_string() 
+                ));
+                parts.push(PathParts {
+                    part_name: part.as_os_str().to_string_lossy().to_string(),
+                    full_path: appended.clone(),
+                });
+            },
+            
+        }
     }
+    println!("{:?}", parts);
     Ok(serde_json::to_value(parts)?)
 }
 
 pub fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+    let path = PathBuf::from(path).canonicalize()?;
     let paths = fs::read_dir(path)?;
 
     let mut path_info = Vec::new();
