@@ -45,49 +45,37 @@ fn human_bytes<T: Into<f64>>(bytes: T) -> String {
 
 pub fn split_path(path: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
     let current_path = Path::new(path).canonicalize()?;
-    println!("{:?}", current_path);
     let mut parts = Vec::new();
     let mut appended = String::new();
-    //appended.push_str(&std::path::MAIN_SEPARATOR.to_string());
+    let separator = std::path::MAIN_SEPARATOR.to_string();
     for (_, part) in current_path.components().enumerate() {
         println!("{:?}", part);
         match part {
-            Component::Prefix(_) => {
-                appended.push_str(&format!(
-                    "{}{}",
-                    part.as_os_str().to_string_lossy(),
-                    std::path::MAIN_SEPARATOR.to_string() 
-                ));
-                parts.push(PathParts {
-                    part_name: part.as_os_str().to_string_lossy().to_string(),
-                    full_path: appended.clone(),
-                });
-            },
             Component::RootDir => {
                 if appended.is_empty() {
-                    appended.push_str(&std::path::MAIN_SEPARATOR.to_string());
+                    appended.push_str(&separator);
                     parts.push(PathParts {
-                        part_name: std::path::MAIN_SEPARATOR.to_string(),
+                        part_name: separator.clone(),
                         full_path: appended.clone(),
                     });
                 }
 
             },
             _ => {
+                let part = part.as_os_str().to_string_lossy();
                 appended.push_str(&format!(
                     "{}{}",
-                    part.as_os_str().to_string_lossy(),
-                    std::path::MAIN_SEPARATOR.to_string() 
+                    part,
+                    separator
                 ));
                 parts.push(PathParts {
-                    part_name: part.as_os_str().to_string_lossy().to_string(),
+                    part_name: part.to_string(),
                     full_path: appended.clone(),
                 });
             },
             
         }
     }
-    println!("{:?}", parts);
     Ok(serde_json::to_value(parts)?)
 }
 
