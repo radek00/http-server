@@ -107,7 +107,8 @@ document.getElementById('upload-form').addEventListener('submit', (event) => {
             progressValue.innerHTML = `${percentComplete}%`;
         }
     }
-    xhr.open('POST', targetPath, true);
+    xhr.open('POST', "upload", true);
+    xhr.setRequestHeader('Path', targetPath);
 
     xhr.onload = function () {
         if (xhr.status === 200) {
