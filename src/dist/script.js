@@ -10,10 +10,10 @@ let currentPaths;
 function renderPath(pathArray) {
     pathElem.innerHTML = '';
     if (pathArray.length > 1) upButton.removeAttribute('disabled');
-    pathArray.forEach((path) => {
+    pathArray.forEach((path, idx) => {
         const pathLink = document.createElement('a');
         pathLink.href = '#';
-        pathLink.textContent = path.part_name === "/" ? "/root" : path.part_name;
+        pathLink.textContent = idx === 0 ? "[root]" : path.part_name;
 
         pathLink.onclick = (event) => {
             event.preventDefault();

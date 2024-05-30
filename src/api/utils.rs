@@ -52,13 +52,26 @@ pub fn split_path(path: &str) -> Result<serde_json::Value, Box<dyn std::error::E
     for (_, part) in current_path.components().enumerate() {
         println!("{:?}", part);
         match part {
-            Component::Prefix(_) => continue,
-            Component::RootDir => {
-                appended.push_str(&std::path::MAIN_SEPARATOR.to_string());
+            Component::Prefix(_) => {
+                appended.push_str(&format!(
+                    "{}{}",
+                    part.as_os_str().to_string_lossy(),
+                    std::path::MAIN_SEPARATOR.to_string() 
+                ));
                 parts.push(PathParts {
-                    part_name: std::path::MAIN_SEPARATOR.to_string(),
+                    part_name: part.as_os_str().to_string_lossy().to_string(),
                     full_path: appended.clone(),
                 });
+            },
+            Component::RootDir => {
+                if appended.is_empty() {
+                    appended.push_str(&std::path::MAIN_SEPARATOR.to_string());
+                    parts.push(PathParts {
+                        part_name: std::path::MAIN_SEPARATOR.to_string(),
+                        full_path: appended.clone(),
+                    });
+                }
+
             },
             _ => {
                 appended.push_str(&format!(
