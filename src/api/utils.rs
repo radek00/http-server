@@ -89,7 +89,7 @@ pub fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::erro
 
         let file = Files {
             name: path.file_name().into_string().unwrap(),
-            path: fs::canonicalize(path.path())?
+            path: path.path()
                 .to_string_lossy()
                 .into_owned(),
             file_type: if path.path().is_dir() {
