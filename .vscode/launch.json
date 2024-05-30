@@ -7,16 +7,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in library 'http-server'",
+            "name": "Debug unit tests in library 'scratch-server'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
                     "--lib",
-                    "--package=http-server"
+                    "--package=scratch-server"
                 ],
                 "filter": {
-                    "name": "http-server",
+                    "name": "scratch-server",
                     "kind": "lib"
                 }
             },
@@ -26,15 +26,15 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'http-server'",
+            "name": "Debug executable 'scratch-server'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=http-server",
-                    "--package=http-server"
+                    "--bin=scratch-server",
+                    "--package=scratch-server"
                 ],
                 "filter": {
-                    "name": "http-server",
+                    "name": "scratch-server",
                     "kind": "bin"
                 }
             },
@@ -44,16 +44,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'http-server'",
+            "name": "Debug unit tests in executable 'scratch-server'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=http-server",
-                    "--package=http-server"
+                    "--bin=scratch-server",
+                    "--package=scratch-server"
                 ],
                 "filter": {
-                    "name": "http-server",
+                    "name": "scratch-server",
                     "kind": "bin"
                 }
             },
