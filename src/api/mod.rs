@@ -31,8 +31,12 @@ pub fn create_routes(router: &mut Router) {
         ))
     });
     router.add_route("/api/files", "GET", |_, params| {
-        let file_path = PathBuf::from(params.get("path").ok_or("Missing path parameter")?); 
-        let file_name = file_path.file_name().ok_or("No file name")?.to_string_lossy().to_string();
+        let file_path = PathBuf::from(params.get("path").ok_or("Missing path parameter")?);
+        let file_name = file_path
+            .file_name()
+            .ok_or("No file name")?
+            .to_string_lossy()
+            .to_string();
         let content_type = Some(
             mime_guess::from_path(&file_name)
                 .first_or_octet_stream()
@@ -40,10 +44,7 @@ pub fn create_routes(router: &mut Router) {
         );
         let file = File::open(file_path)?;
         Ok(HttpResponse::new(
-            Body::FileStream(
-                file,
-                file_name
-            ),
+            Body::FileStream(file, file_name),
             content_type,
             200,
         ))
