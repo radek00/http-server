@@ -290,7 +290,10 @@ fn handle_connection(
     match headers.get("Content-Type") {
         Some(content_type) => {
             if content_type.contains("multipart/form-data") {
+                let path = headers.get("Path").unwrap();
+                println!("Path: {}", path);
                 return Ok(
+                    
                     handle_multipart_file_upload(content_type, &headers, &mut reader, path)
                         .map_err(error_mapper)?,
                 );
@@ -363,7 +366,8 @@ fn handle_multipart_file_upload(
         .nth(1)
         .and_then(|s| s.split('\"').next())
         .ok_or("Error parsing file name")?;
-    let target_path = format!("{}/{}", path, filename);
+    let mut target_path = PathBuf::from(path);
+    target_path.push(filename);
 
     //calculate file size based on whole content length so that reading the stream can be stopped
     let mut file = File::create(target_path)?;
