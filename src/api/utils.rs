@@ -1,4 +1,7 @@
-use std::{fs, path::{Component, Path, PathBuf}};
+use std::{
+    fs,
+    path::{Component, Path, PathBuf},
+};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
@@ -48,7 +51,7 @@ pub fn split_path(path: &str) -> Result<serde_json::Value, Box<dyn std::error::E
     let mut parts = Vec::new();
     let mut appended = String::new();
     let separator = std::path::MAIN_SEPARATOR.to_string();
-    for (_, part) in current_path.components().enumerate() {
+    for part in current_path.components() {
         match part {
             Component::RootDir => {
                 if appended.is_empty() {
@@ -58,21 +61,15 @@ pub fn split_path(path: &str) -> Result<serde_json::Value, Box<dyn std::error::E
                         full_path: appended.clone(),
                     });
                 }
-
-            },
+            }
             _ => {
                 let part = part.as_os_str().to_string_lossy();
-                appended.push_str(&format!(
-                    "{}{}",
-                    part,
-                    separator
-                ));
+                appended.push_str(&format!("{}{}", part, separator));
                 parts.push(PathParts {
                     part_name: part.to_string(),
                     full_path: appended.clone(),
                 });
-            },
-            
+            }
         }
     }
     Ok(serde_json::to_value(parts)?)
@@ -89,9 +86,7 @@ pub fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::erro
 
         let file = Files {
             name: path.file_name().into_string().unwrap(),
-            path: path.path()
-                .to_string_lossy()
-                .into_owned(),
+            path: path.path().to_string_lossy().into_owned(),
             file_type: if path.path().is_dir() {
                 FileType::Directory
             } else {
