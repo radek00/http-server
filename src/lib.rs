@@ -291,7 +291,6 @@ fn handle_connection(
         Some(content_type) => {
             if content_type.contains("multipart/form-data") {
                 let path = headers.get("Path").unwrap();
-                println!("Path: {}", path);
                 return Ok(
                     
                     handle_multipart_file_upload(content_type, &headers, &mut reader, path)
