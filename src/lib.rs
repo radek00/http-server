@@ -166,7 +166,7 @@ impl HttpServer {
     }
     pub fn run(self) -> Result<(), Box<dyn std::error::Error>> {
         self.print_server_info();
-        let listener = TcpListener::bind(SocketAddr::from(([127, 0, 0, 1], self.port)))?;
+        let listener = TcpListener::bind(SocketAddr::from(([0, 0, 0, 0], self.port)))?;
         let pool = thread_pool::ThreadPool::build(self.threads)?;
 
         let arc_router = Arc::new(self.router);
