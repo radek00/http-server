@@ -70,7 +70,7 @@ impl Router {
         method: &str,
         data: Option<&str>,
     ) -> Result<HttpResponse, Box<dyn std::error::Error>> {
-        let stripped_path: Vec<&str> = path.split('?').collect();
+        let stripped_path: Vec<&str> = path.splitn(2, '?').collect();
         let pattern = format!("{}{}", method, stripped_path[0]);
         for route in &self.routes {
             let pattern_match = route.pattern.captures(&pattern);
