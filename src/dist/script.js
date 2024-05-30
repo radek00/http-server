@@ -9,7 +9,6 @@ let currentPaths;
 
 function renderPath(pathArray) {
     pathElem.innerHTML = '';
-    if (pathArray.length > 1) upButton.removeAttribute('disabled');
     pathArray.forEach((path, idx) => {
         const pathLink = document.createElement('a');
         pathLink.href = '#';
@@ -67,9 +66,6 @@ async function renderFileTree(path = "./") {
 
 function onUpClick() {
     const previousPath = currentPaths[currentPaths.length - 2];
-    if (previousPath.part_name === "/") {
-        upButton.setAttribute('disabled', 'true');
-    }
     fetchPath(previousPath.full_path);
 }
 
@@ -82,6 +78,12 @@ function fetchPath(path = "./") {
     
     }).then(resp => resp.json()).then(paths => {
         currentPaths = paths;
+        console.log(currentPaths)
+        if (currentPaths.length === 1) {
+            upButton.setAttribute('disabled', 'true');
+        } else {
+            upButton.removeAttribute('disabled');
+        }
         renderPath(paths);
         renderFileTree(paths[paths.length -1].full_path);
     });
