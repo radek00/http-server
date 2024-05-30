@@ -1,5 +1,5 @@
 use scratch_server::{Body, HttpResponse, Router, StaticFiles};
-use std::{fs::File, ops::Deref, path::PathBuf};
+use std::{fs::File, path::PathBuf};
 
 use self::utils::{list_directory, split_path};
 
@@ -50,7 +50,6 @@ pub fn create_routes(router: &mut Router) {
     });
 
     router.add_route("/api/directory", "GET", |_, params| {
-        //println!("Request to directory path with query param: {:?}", params.unwrap());
         Ok(HttpResponse::new(
             Body::Json(list_directory(
                 params.get("path").ok_or("Missing path parameter")?,
