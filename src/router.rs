@@ -3,7 +3,7 @@ use serde_json::json;
 use std::{collections::HashMap, sync::Arc};
 use termcolor::Color;
 
-use crate::{logger::Logger, Body, HttpResponse};
+use crate::{logger::Logger, ApiError, Body, HttpResponse};
 
 fn get_status_code_color(status_code: u16) -> Color {
     match status_code {
@@ -15,11 +15,8 @@ fn get_status_code_color(status_code: u16) -> Color {
     }
 }
 
-type Handler = Box<
-    dyn Fn(Option<&str>, HashMap<&str, &str>) -> Result<HttpResponse, Box<dyn std::error::Error>>
-        + Send
-        + Sync,
->;
+type Handler =
+    Box<dyn Fn(Option<&str>, HashMap<&str, &str>) -> Result<HttpResponse, ApiError> + Send + Sync>;
 
 pub struct Route {
     pattern: Regex,
@@ -44,10 +41,7 @@ impl Router {
 
     pub fn add_route<F>(&mut self, path: &str, method: &str, handler: F)
     where
-        F: Fn(
-                Option<&str>,
-                HashMap<&str, &str>,
-            ) -> Result<HttpResponse, Box<dyn std::error::Error>>
+        F: Fn(Option<&str>, HashMap<&str, &str>) -> Result<HttpResponse, ApiError>
             + Send
             + Sync
             + 'static,
@@ -69,7 +63,7 @@ impl Router {
         path: &str,
         method: &str,
         data: Option<&str>,
-    ) -> Result<HttpResponse, Box<dyn std::error::Error>> {
+    ) -> Result<HttpResponse, ApiError> {
         let stripped_path: Vec<&str> = path.splitn(2, '?').collect();
         let pattern = format!("{}{}", method, stripped_path[0]);
         for route in &self.routes {

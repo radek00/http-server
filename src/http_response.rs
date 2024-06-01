@@ -5,6 +5,7 @@ use std::{
 
 use crate::ReadWrite;
 
+#[derive(Debug)]
 pub enum Body {
     Text(String),
     Json(serde_json::Value),
@@ -12,6 +13,7 @@ pub enum Body {
     StaticFile(&'static [u8], String),
 }
 
+#[derive(Debug)]
 pub struct HttpResponse {
     pub content_type: String,
     pub body: Body,

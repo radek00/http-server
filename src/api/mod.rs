@@ -22,14 +22,15 @@ pub fn create_routes(router: &mut Router) {
             200,
         ))
     });
-    router.add_route("/api/error", "GET", |data, _| {
-        println!("Request to other path with data {}", data.unwrap());
-        Ok(HttpResponse::new(
-            Body::Text("Error occured".to_string()),
-            Some(String::from("text/plain")),
-            500,
-        ))
-    });
+    // router.add_route("/api/error", "GET", |data, _| {
+    //     //println!("Request to other path with data {}", data.unwrap());
+
+    //     Ok(HttpResponse::new(
+    //         Body::Text(html),
+    //         Some(String::from("text/html")),
+    //         500,
+    //     ))
+    // });
     router.add_route("/api/files", "GET", |_, params| {
         let file_path = PathBuf::from(params.get("path").ok_or("Missing path parameter")?);
         let file_name = file_path
@@ -51,6 +52,17 @@ pub fn create_routes(router: &mut Router) {
     });
 
     router.add_route("/api/directory", "GET", |_, params| {
+        // let result: Result<HttpResponse, Box<dyn std::error::Error>> = (|| {
+        //     Ok(HttpResponse::new(
+        //         Body::Json(list_directory(
+        //             params.get("path").ok_or("Missing path parameter")?,
+        //         )?),
+        //         None,
+        //         200,
+        //     ))
+        // })();
+
+        // Ok(result)
         Ok(HttpResponse::new(
             Body::Json(list_directory(
                 params.get("path").ok_or("Missing path parameter")?,

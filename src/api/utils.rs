@@ -4,6 +4,7 @@ use std::{
 };
 
 use chrono::{DateTime, Utc};
+use scratch_server::{ApiError, Body, HttpResponse};
 use serde::{Deserialize, Serialize};
 
 const SUFFIX: [&str; 9] = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
@@ -46,7 +47,7 @@ fn human_bytes<T: Into<f64>>(bytes: T) -> String {
     [&result, SUFFIX[base.floor() as usize]].join(" ")
 }
 
-pub fn split_path(path: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+pub fn split_path(path: &str) -> Result<serde_json::Value, ApiError> {
     let current_path = Path::new(path).canonicalize()?;
     let mut parts = Vec::new();
     let mut appended = String::new();
@@ -75,7 +76,7 @@ pub fn split_path(path: &str) -> Result<serde_json::Value, Box<dyn std::error::E
     Ok(serde_json::to_value(parts)?)
 }
 
-pub fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+pub fn list_directory(path: &str) -> Result<serde_json::Value, ApiError> {
     let path = PathBuf::from(path).canonicalize()?;
     let paths = fs::read_dir(path)?;
 
