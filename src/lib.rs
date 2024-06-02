@@ -1,3 +1,5 @@
+use api_error::ApiError;
+use http_parse_error::HttpParseError;
 use logger::Logger;
 use native_tls::{Identity, TlsAcceptor};
 use std::borrow::Cow;
@@ -9,14 +11,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use termcolor::Color;
 
-mod api_error;
+mod errors;
 mod http_response;
 mod logger;
 mod router;
 mod static_files;
 mod thread_pool;
 
-pub use api_error::*;
+pub use errors::*;
 pub use http_response::*;
 pub use router::*;
 pub use static_files::*;
