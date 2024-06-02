@@ -1,14 +1,43 @@
-use std::{convert::Infallible, fmt};
+use std::fmt;
 
 use crate::{Body, HttpResponse};
 
 #[derive(Debug)]
 pub struct ApiError {
-    pub error: HttpResponse,
-    // IoError(std::io::Error),
-    // JsonError(HttpResponse),
-    // // Utf8Error(std::string::FromUtf8Error),
-    // Other(HttpResponse), // Catch-all for any other error
+    pub error_response: HttpResponse,
+    pub method: Option<String>,
+    pub path: Option<String>,
+}
+
+#[derive(Debug)]
+pub struct HttpParseError {
+    pub message: String,
+}
+
+impl fmt::Display for HttpParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.message)
+    }
+}
+
+impl std::error::Error for HttpParseError {}
+
+impl From<std::io::Error> for HttpParseError {
+    fn from(error: std::io::Error) -> Self {
+        HttpParseError {
+            message: error.to_string(),
+        }
+    }
+}
+
+impl ApiError {
+    pub fn new(code: u16, message: String) -> Self {
+        ApiError {
+            error_response: format_error(code, message),
+            method: None,
+            path: None,
+        }
+    }
 }
 
 impl fmt::Display for ApiError {
@@ -22,38 +51,36 @@ impl std::error::Error for ApiError {}
 impl From<std::io::Error> for ApiError {
     fn from(error: std::io::Error) -> Self {
         println!("Error io: {}", error);
-        ApiError {
-            error: format_error(500, error.to_string()),
-        }
+        ApiError::new(500, error.to_string())
     }
 }
 
 impl From<Box<dyn std::error::Error>> for ApiError {
     fn from(error: Box<dyn std::error::Error>) -> ApiError {
         println!("Error box: {}", error);
-        // Here you can define how to convert the error.
-        // This is just a simple example that wraps the error message in an ApiError.
-        ApiError {
-            error: format_error(500, error.to_string()),
-        }
+        ApiError::new(500, error.to_string())
     }
 }
 
 impl From<serde_json::Error> for ApiError {
     fn from(error: serde_json::Error) -> Self {
         println!("Error notmal: {}", error);
-        ApiError {
-            error: format_error(500, error.to_string()),
-        }
+        ApiError::new(500, error.to_string())
     }
 }
 
 impl From<&str> for ApiError {
     fn from(error: &str) -> Self {
-        // Create an ApiError from the string error message
-        ApiError {
-            error: format_error(500, error.to_string()),
-        }
+        ApiError::new(500, error.to_string())
+    }
+}
+
+impl From<HttpParseError> for ApiError {
+    fn from(error: HttpParseError) -> Self {
+        ApiError::new(
+            500,
+            format!("Error parsing HTTP request: {}", error.message),
+        )
     }
 }
 
@@ -95,10 +122,9 @@ fn format_error(error_code: u16, message: String) -> HttpResponse {
     </html>",
         error_code, "Not Found", message
     );
-    let response = HttpResponse::new(
+    HttpResponse::new(
         Body::Text(html),
         Some(String::from("text/html")),
         error_code,
-    );
-    response
+    )
 }

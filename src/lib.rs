@@ -1,9 +1,7 @@
 use logger::Logger;
 use native_tls::{Identity, TlsAcceptor};
-use serde_json::json;
 use std::borrow::Cow;
 use std::collections::HashMap;
-use std::fmt;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::net::{SocketAddr, TcpListener, TcpStream};
@@ -11,12 +9,14 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use termcolor::Color;
 
+mod api_error;
 mod http_response;
 mod logger;
 mod router;
 mod static_files;
 mod thread_pool;
 
+pub use api_error::*;
 pub use http_response::*;
 pub use router::*;
 pub use static_files::*;
@@ -33,21 +33,6 @@ pub use static_files::*;
 //     TRACE,
 //     CONNECT,
 // }
-
-#[derive(Debug)]
-struct ServerError {
-    message: String,
-    method: String,
-    path: String,
-}
-
-impl fmt::Display for ServerError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.message)
-    }
-}
-
-impl std::error::Error for ServerError {}
 
 pub trait ReadWrite: Read + Write + Send + 'static {}
 
@@ -184,19 +169,11 @@ impl HttpServer {
             pool.execute(move || {
                 handle_connection(&mut stream, &router_clone)
                     .unwrap_or_else(|err| {
-                        let message = err.to_string();
-                        let server_error = err.downcast::<ServerError>().ok();
-
-                        if let Some(server_error) = server_error {
-                            router_clone
-                                .log_response(500, &server_error.path, &server_error.method)
-                                .unwrap();
+                        if let (Some(method), Some(path)) = (&err.method, &err.path) {
+                            router_clone.log_response(500, path, method).unwrap();
                         }
 
-                        let error_message = json!({
-                            "error": format!("{}", message),
-                        });
-                        HttpResponse::new(Body::Json(error_message), None, 500)
+                        err.error_response
                     })
                     .write_response(&mut stream)
                     .unwrap_or_else(|err| {
@@ -249,22 +226,19 @@ Logs:"#,
     }
 }
 
-fn handle_connection(
-    stream: &mut Box<dyn ReadWrite>,
-    router: &Arc<Router>,
-) -> Result<HttpResponse, Box<dyn std::error::Error>> {
-    let mut reader = BufReader::new(&mut *stream);
-
-    let mut request = String::new();
+fn parse_http<'a>(
+    reader: &mut BufReader<&mut Box<dyn ReadWrite>>,
+    request_string: &'a mut String,
+) -> Result<(&'a str, &'a str, HashMap<&'a str, &'a str>), HttpParseError> {
     loop {
         let mut line = String::new();
         reader.read_line(&mut line)?;
-        request.push_str(&line);
+        request_string.push_str(&line);
         if line == "\r\n" {
             break;
         }
     }
-    let http_parts: Vec<&str> = request.split("\r\n\r\n").collect();
+    let http_parts: Vec<&str> = request_string.split("\r\n\r\n").collect();
     let request_lines: Vec<&str> = http_parts[0].lines().collect();
 
     let http_method: Vec<&str> = request_lines[0].split_whitespace().collect();
@@ -278,35 +252,41 @@ fn handle_connection(
         }
     }
 
+    Ok((method, path, headers))
+}
+
+fn handle_connection(
+    stream: &mut Box<dyn ReadWrite>,
+    router: &Arc<Router>,
+) -> Result<HttpResponse, ApiError> {
+    let mut reader = BufReader::new(&mut *stream);
+
+    let mut request = String::new();
+    let (method, path, headers) = parse_http(&mut reader, &mut request)?;
+
     let mut buffer = Vec::new();
     let body;
-
-    let error_mapper = |e: Box<dyn std::error::Error>| ServerError {
-        message: e.to_string(),
-        method: method.to_string(),
-        path: path.to_string(),
-    };
 
     match headers.get("Content-Type") {
         Some(content_type) => {
             if content_type.contains("multipart/form-data") {
                 let path = headers.get("Path").unwrap();
-                return Ok(
-                    handle_multipart_file_upload(content_type, &headers, &mut reader, path)
-                        .map_err(error_mapper)?,
-                );
+                return Ok(handle_multipart_file_upload(
+                    content_type,
+                    &headers,
+                    &mut reader,
+                    path,
+                )?);
             } else {
-                body = parse_body(&headers, reader, &mut buffer).map_err(error_mapper)?;
+                body = parse_body(&headers, reader, &mut buffer)?;
             }
         }
         None => {
-            body = parse_body(&headers, reader, &mut buffer).map_err(error_mapper)?;
+            body = parse_body(&headers, reader, &mut buffer)?;
         }
     }
 
-    let response = router
-        .route(path, method, body.as_deref())
-        .map_err(error_mapper)?;
+    let response = router.route(path, method, body.as_deref())?;
     Ok(response)
 }
 

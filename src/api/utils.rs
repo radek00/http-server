@@ -4,7 +4,7 @@ use std::{
 };
 
 use chrono::{DateTime, Utc};
-use scratch_server::{ApiError, Body, HttpResponse};
+use scratch_server::ApiError;
 use serde::{Deserialize, Serialize};
 
 const SUFFIX: [&str; 9] = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
