@@ -29,35 +29,32 @@ impl std::error::Error for ApiError {}
 
 impl From<std::io::Error> for ApiError {
     fn from(error: std::io::Error) -> Self {
-        println!("Error io: {}", error);
-        ApiError::new(500, error.to_string())
+        ApiError::new(404, format!("IO Error: {}", error))
     }
 }
 
 impl From<Box<dyn std::error::Error>> for ApiError {
     fn from(error: Box<dyn std::error::Error>) -> ApiError {
-        println!("Error box: {}", error);
         ApiError::new(500, error.to_string())
     }
 }
 
 impl From<serde_json::Error> for ApiError {
     fn from(error: serde_json::Error) -> Self {
-        println!("Error notmal: {}", error);
-        ApiError::new(500, error.to_string())
+        ApiError::new(400, format!("JSON Serialization Error: {}", error))
     }
 }
 
 impl From<&str> for ApiError {
     fn from(error: &str) -> Self {
-        ApiError::new(500, error.to_string())
+        ApiError::new(400, error.to_string())
     }
 }
 
 impl From<HttpParseError> for ApiError {
     fn from(error: HttpParseError) -> Self {
         ApiError::new(
-            500,
+            400,
             format!("Error parsing HTTP request: {}", error.message),
         )
     }
@@ -99,11 +96,34 @@ fn format_error(error_code: u16, message: String) -> HttpResponse {
         </div>
     </body>
     </html>",
-        error_code, "Not Found", message
+        error_code,
+        get_cannonical_reason(error_code),
+        message
     );
     HttpResponse::new(
         Body::Text(html),
         Some(String::from("text/html")),
         error_code,
     )
+}
+
+fn get_cannonical_reason<'a>(status_code: u16) -> &'a str {
+    match status_code {
+        200 => "OK",
+        201 => "Created",
+        204 => "No Content",
+        301 => "Moved Permanently",
+        302 => "Found",
+        304 => "Not Modified",
+        400 => "Bad Request",
+        401 => "Unauthorized",
+        403 => "Forbidden",
+        404 => "Not Found",
+        405 => "Method Not Allowed",
+        500 => "Internal Server Error",
+        501 => "Not Implemented",
+        502 => "Bad Gateway",
+        503 => "Service Unavailable",
+        _ => "Unknown Status Code",
+    }
 }
