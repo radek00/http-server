@@ -86,7 +86,11 @@ impl Router {
                             }
                         }
                     }
-                    let response = (route.handler)(data, param_dict)?;
+                    let response = (route.handler)(data, param_dict).map_err(|mut err| {
+                        err.method = Some(method.to_string());
+                        err.path = Some(stripped_path[0].to_string());
+                        err
+                    })?;
 
                     self.log_response(response.status_code, stripped_path[0], method)?;
 
