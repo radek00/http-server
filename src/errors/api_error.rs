@@ -10,9 +10,21 @@ pub struct ApiError {
 }
 
 impl ApiError {
-    pub fn new(code: u16, message: String) -> Self {
+    pub fn new_with_html(code: u16, message: String) -> Self {
         ApiError {
             error_response: format_error(code, message),
+            method: None,
+            path: None,
+        }
+    }
+
+    pub fn new_with_json(code: u16, message: String) -> Self {
+        ApiError {
+            error_response: HttpResponse::new(
+                Body::Json(serde_json::json!({"message": message})),
+                None,
+                code,
+            ),
             method: None,
             path: None,
         }
@@ -29,31 +41,31 @@ impl std::error::Error for ApiError {}
 
 impl From<std::io::Error> for ApiError {
     fn from(error: std::io::Error) -> Self {
-        ApiError::new(404, format!("IO Error: {}", error))
+        ApiError::new_with_json(404, format!("IO Error: {}", error))
     }
 }
 
 impl From<Box<dyn std::error::Error>> for ApiError {
     fn from(error: Box<dyn std::error::Error>) -> ApiError {
-        ApiError::new(500, error.to_string())
+        ApiError::new_with_json(500, error.to_string())
     }
 }
 
 impl From<serde_json::Error> for ApiError {
     fn from(error: serde_json::Error) -> Self {
-        ApiError::new(400, format!("JSON Serialization Error: {}", error))
+        ApiError::new_with_json(400, format!("JSON Serialization Error: {}", error))
     }
 }
 
 impl From<&str> for ApiError {
     fn from(error: &str) -> Self {
-        ApiError::new(400, error.to_string())
+        ApiError::new_with_json(400, error.to_string())
     }
 }
 
 impl From<HttpParseError> for ApiError {
     fn from(error: HttpParseError) -> Self {
-        ApiError::new(
+        ApiError::new_with_json(
             400,
             format!("Error parsing HTTP request: {}", error.message),
         )
