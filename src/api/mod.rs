@@ -1,4 +1,4 @@
-use scratch_server::{Body, HttpResponse, Router, StaticFiles};
+use scratch_server::{api_error::ApiError, Body, HttpResponse, Router, StaticFiles};
 use std::{fs::File, path::PathBuf};
 
 use self::utils::{list_directory, split_path};
@@ -13,7 +13,12 @@ pub fn create_routes(router: &mut Router) {
             None => "index.html",
         };
         Ok(HttpResponse::new(
-            Body::StaticFile(static_files.get(file_name)?, file_name.to_string()),
+            Body::StaticFile(
+                static_files
+                    .get(file_name)
+                    .map_err(|err| ApiError::new_with_html(404, err.to_string()))?,
+                file_name.to_string(),
+            ),
             Some(
                 mime_guess::from_path(file_name)
                     .first_or_text_plain()
@@ -52,21 +57,11 @@ pub fn create_routes(router: &mut Router) {
     });
 
     router.add_route("/api/directory", "GET", |_, params| {
-        // let result: Result<HttpResponse, Box<dyn std::error::Error>> = (|| {
-        //     Ok(HttpResponse::new(
-        //         Body::Json(list_directory(
-        //             params.get("path").ok_or("Missing path parameter")?,
-        //         )?),
-        //         None,
-        //         200,
-        //     ))
-        // })();
-
-        // Ok(result)
         Ok(HttpResponse::new(
-            Body::Json(list_directory(
-                params.get("path").ok_or("Missing path parameter")?,
-            )?),
+            Body::Json(
+                list_directory(params.get("path").ok_or("Missing path parameter")?)
+                    .map_err(|err| ApiError::new_with_html(404, err.to_string()))?,
+            ),
             None,
             200,
         ))

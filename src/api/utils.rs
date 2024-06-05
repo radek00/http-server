@@ -76,7 +76,7 @@ pub fn split_path(path: &str) -> Result<serde_json::Value, ApiError> {
     Ok(serde_json::to_value(parts)?)
 }
 
-pub fn list_directory(path: &str) -> Result<serde_json::Value, ApiError> {
+pub fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
     let path = PathBuf::from(path).canonicalize()?;
     let paths = fs::read_dir(path)?;
 
