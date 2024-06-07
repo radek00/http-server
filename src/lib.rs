@@ -153,7 +153,7 @@ impl HttpServer {
     }
     pub fn run(self) -> Result<(), Box<dyn std::error::Error>> {
         self.print_server_info();
-        let listener = TcpListener::bind(SocketAddr::from(([0, 0, 0, 0], self.port)))?;
+        let listener = TcpListener::bind(SocketAddr::from(([0, 0, 0, 0], 7070)))?;
         let pool = thread_pool::ThreadPool::build(self.threads)?;
 
         let arc_router = Arc::new(self.router);
@@ -273,12 +273,9 @@ fn handle_connection(
         Some(content_type) => {
             if content_type.contains("multipart/form-data") {
                 let path = headers.get("Path").unwrap();
-                return Ok(handle_multipart_file_upload(
-                    content_type,
-                    &headers,
-                    &mut reader,
-                    path,
-                )?);
+                let response =
+                    handle_multipart_file_upload(content_type, &headers, &mut reader, path)?;
+                return Ok(response);
             } else {
                 body = parse_body(&headers, reader, &mut buffer)?;
             }
@@ -346,8 +343,15 @@ fn handle_multipart_file_upload(
         .nth(1)
         .and_then(|s| s.split('\"').next())
         .ok_or("Error parsing file name")?;
-    let mut target_path = PathBuf::from(path);
+    println!("path: {}", path);
+    let mut target_path = PathBuf::from("./").canonicalize()?.join(path);
+    println!("target_path: {:?}", target_path);
     target_path.push(filename);
+
+    let current_dir = std::env::current_dir()?;
+    if !target_path.starts_with(&current_dir) {
+        return Err("Only paths relative to the current directory are allowed".into());
+    }
 
     //calculate file size based on whole content length so that reading the stream can be stopped
     let mut file = File::create(target_path)?;
