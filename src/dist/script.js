@@ -4,8 +4,8 @@ const uploadProgress = document.getElementById('upload-progress');
 const uploadForm = document.getElementById('upload-form');
 uploadForm.reset();
 
-let currentPathElem;
-let currentPaths;
+let currentFiles = [];
+let currentPaths = [];
 
 function renderPath(pathArray) {
     pathElem.innerHTML = '';
@@ -19,7 +19,7 @@ function renderPath(pathArray) {
             currentPathElem.classList.toggle('current');
             pathLink.classList.toggle('current');
             currentPathElem = pathLink;
-            fetchPath(path.full_path);
+            fetchDirectory(path.full_path);
         };
         pathElem.appendChild(pathLink);
     });
@@ -27,17 +27,11 @@ function renderPath(pathArray) {
     currentPathElem.classList.add('current');
 }
 
-async function fetchFiles(path = "./") {
-    const files = await fetch(`/api/directory?path=${path}`);
-    return await files.json();
-}
-
-async function renderFileTree(path = "./") {
+async function renderFileTree(fileArray) {
     const tbody = document.querySelector('tbody');
     tbody.innerHTML = '';
-    const files = await fetchFiles(path);
 
-    files.forEach(file => {
+    fileArray.forEach(file => {
         const tr = document.createElement('tr');
         const name = document.createElement('td');
         const fileLink = document.createElement('a');
@@ -46,7 +40,7 @@ async function renderFileTree(path = "./") {
             fileLink.textContent = `${file.name}/`;
             fileLink.onclick = (event) => {
                 event.preventDefault();
-                fetchPath(file.path);
+                fetchDirectory(file.path);
             }
         } else {
             fileLink.href = `api/files?path=${file.path}`;
@@ -64,29 +58,24 @@ async function renderFileTree(path = "./") {
     });
 };
 
-function onUpClick() {
-    const previousPath = currentPaths[currentPaths.length - 2];
-    fetchPath(previousPath.full_path);
+async function fetchDirectory(path = "./") {
+    const files = await fetch(`/api/directory?path=${path}`);
+    const directory = await files.json();
+    currentFiles = directory.files;
+    currentPaths = directory.paths;
+    renderFileTree(currentFiles);
+    renderPath(currentPaths);
+
+    if (currentPaths.length === 1) {
+        upButton.setAttribute('disabled', true);
+    } else {
+        upButton.removeAttribute('disabled');
+    }
+
 }
 
-function fetchPath(path = "./") {
-    fetch(`/api/path?path=${path}`, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    
-    }).then(resp => resp.json()).then(paths => {
-        currentPaths = paths;
-        console.log(currentPaths)
-        if (currentPaths.length === 1) {
-            upButton.setAttribute('disabled', 'true');
-        } else {
-            upButton.removeAttribute('disabled');
-        }
-        renderPath(paths);
-        renderFileTree(paths[paths.length -1].full_path);
-    });
+function onUpClick() {
+    fetchDirectory(currentPaths[currentPaths.length - 2].full_path);
 }
 
 function onUploadInputChange(event) {
@@ -115,7 +104,8 @@ document.getElementById('upload-form').addEventListener('submit', (event) => {
     xhr.onload = function () {
         if (xhr.status === 200) {
             alert('File uploaded successfully.');
-            renderFileTree(targetPath);
+            fetchDirectory(targetPath);
+            uploadForm.reset();
         } else {
             alert('An error occurred while uploading the file.');
         }
@@ -124,4 +114,4 @@ document.getElementById('upload-form').addEventListener('submit', (event) => {
     xhr.send(formData);
 });
 
-fetchPath();
+fetchDirectory();
