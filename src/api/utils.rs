@@ -53,12 +53,18 @@ fn human_bytes<T: Into<f64>>(bytes: T) -> String {
 }
 
 pub fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
-    let cannonical_root_path = Path::new("./").canonicalize()?;
-    let root_path = PathBuf::from("./").join(path);
+    let base_root_path = Path::new("./").canonicalize()?;
+    let target_path = PathBuf::from("./").join(path);
+    let cannonical_target_path = target_path.canonicalize()?;
+
+    let current_dir = std::env::current_dir()?;
+    if !cannonical_target_path.starts_with(&current_dir) {
+        return Err("Only paths relative to the current directory are allowed".into());
+    }
 
     let mut current_full_path = String::new();
     let mut directory_response = DirectoryInfoResponse {
-        paths: root_path
+        paths: target_path
             .components()
             .map(|c| {
                 let part_name = c.as_os_str().to_string_lossy().to_string();
@@ -74,7 +80,7 @@ pub fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::erro
         files: Vec::new(),
     };
 
-    let directory_contents = fs::read_dir(root_path.canonicalize()?)?;
+    let directory_contents = fs::read_dir(cannonical_target_path)?;
 
     for path in directory_contents {
         let path = path?;
@@ -84,7 +90,7 @@ pub fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::erro
             name: path.file_name().into_string().unwrap(),
             path: path
                 .path()
-                .strip_prefix(&cannonical_root_path)?
+                .strip_prefix(&base_root_path)?
                 .to_string_lossy()
                 .into_owned(),
             file_type: if path.path().is_dir() {
