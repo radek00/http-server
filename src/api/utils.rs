@@ -1,10 +1,9 @@
 use std::{
     fs,
-    path::{Component, Path, PathBuf},
+    path::{Path, PathBuf},
 };
 
 use chrono::{DateTime, Utc};
-use scratch_server::api_error::ApiError;
 use serde::{Deserialize, Serialize};
 
 const SUFFIX: [&str; 9] = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
@@ -51,35 +50,6 @@ fn human_bytes<T: Into<f64>>(bytes: T) -> String {
         .to_owned();
 
     [&result, SUFFIX[base.floor() as usize]].join(" ")
-}
-
-pub fn split_path(path: &str) -> Result<serde_json::Value, ApiError> {
-    let current_path = Path::new(path).canonicalize()?;
-    let mut parts = Vec::new();
-    let mut appended = String::new();
-    let separator = std::path::MAIN_SEPARATOR.to_string();
-    for part in current_path.components() {
-        match part {
-            Component::RootDir => {
-                if appended.is_empty() {
-                    appended.push_str(&separator);
-                    parts.push(PathParts {
-                        part_name: separator.clone(),
-                        full_path: appended.clone(),
-                    });
-                }
-            }
-            _ => {
-                let part = part.as_os_str().to_string_lossy();
-                appended.push_str(&format!("{}{}", part, separator));
-                parts.push(PathParts {
-                    part_name: part.to_string(),
-                    full_path: appended.clone(),
-                });
-            }
-        }
-    }
-    Ok(serde_json::to_value(parts)?)
 }
 
 pub fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {

@@ -1,7 +1,7 @@
 use scratch_server::{api_error::ApiError, Body, HttpResponse, Router, StaticFiles};
 use std::{fs::File, path::PathBuf};
 
-use self::utils::{list_directory, split_path};
+use self::utils::list_directory;
 
 mod utils;
 
@@ -27,15 +27,6 @@ pub fn create_routes(router: &mut Router) {
             200,
         ))
     });
-    // router.add_route("/api/error", "GET", |data, _| {
-    //     //println!("Request to other path with data {}", data.unwrap());
-
-    //     Ok(HttpResponse::new(
-    //         Body::Text(html),
-    //         Some(String::from("text/html")),
-    //         500,
-    //     ))
-    // });
     router.add_route("/api/files", "GET", |_, params| {
         let file_path = PathBuf::from(params.get("path").ok_or("Missing path parameter")?);
         let file_name = file_path
@@ -62,16 +53,6 @@ pub fn create_routes(router: &mut Router) {
                 list_directory(params.get("path").ok_or("Missing path parameter")?)
                     .map_err(|err| ApiError::new_with_html(404, err.to_string()))?,
             ),
-            None,
-            200,
-        ))
-    });
-
-    router.add_route("/api/path", "GET", |_, params| {
-        Ok(HttpResponse::new(
-            Body::Json(split_path(
-                params.get("path").ok_or("Missing path parameter")?,
-            )?),
             None,
             200,
         ))
