@@ -20,3 +20,11 @@ impl From<std::io::Error> for HttpParseError {
         }
     }
 }
+
+impl Default for HttpParseError {
+    fn default() -> Self {
+        HttpParseError {
+            message: "An error occurred while parsing the HTTP request".to_string(),
+        }
+    }
+}

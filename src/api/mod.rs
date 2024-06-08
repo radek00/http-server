@@ -49,10 +49,9 @@ pub fn create_routes(router: &mut Router) {
 
     router.add_route("/api/directory", "GET", |_, params| {
         Ok(HttpResponse::new(
-            Body::Json(
-                list_directory(params.get("path").ok_or("Missing path parameter")?)
-                    .map_err(|err| ApiError::new_with_html(404, err.to_string()))?,
-            ),
+            Body::Json(list_directory(
+                params.get("path").ok_or("Missing path parameter")?,
+            )?),
             None,
             200,
         ))
