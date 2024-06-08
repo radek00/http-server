@@ -153,7 +153,7 @@ impl HttpServer {
     }
     pub fn run(self) -> Result<(), Box<dyn std::error::Error>> {
         self.print_server_info();
-        let listener = TcpListener::bind(SocketAddr::from(([0, 0, 0, 0], 7070)))?;
+        let listener = TcpListener::bind(SocketAddr::from(([0, 0, 0, 0], self.port)))?;
         let pool = thread_pool::ThreadPool::build(self.threads)?;
 
         let arc_router = Arc::new(self.router);
@@ -241,16 +241,32 @@ fn parse_http<'a>(
         }
     }
     let http_parts: Vec<&str> = request_string.split("\r\n\r\n").collect();
-    let request_lines: Vec<&str> = http_parts[0].lines().collect();
+    let request_lines: Vec<&str> = http_parts
+        .first()
+        .ok_or(HttpParseError::default())?
+        .lines()
+        .collect();
 
-    let http_method: Vec<&str> = request_lines[0].split_whitespace().collect();
+    let http_method: Vec<&str> = request_lines
+        .first()
+        .ok_or(HttpParseError::default())?
+        .split_whitespace()
+        .collect();
+
+    if http_method.len() < 3 {
+        return Err(HttpParseError::default());
+    }
+
     let (method, path, _version) = (http_method[0], http_method[1], http_method[2]);
 
     let mut headers = std::collections::HashMap::new();
     for line in &request_lines[1..] {
         let parts: Vec<&str> = line.splitn(2, ':').collect();
         if parts.len() == 2 {
-            headers.insert(parts[0].trim(), parts[1].trim());
+            headers.insert(
+                *parts.first().ok_or(HttpParseError::default())?,
+                parts.get(1).ok_or(HttpParseError::default())?.trim(),
+            );
         }
     }
 
@@ -274,7 +290,10 @@ fn handle_connection(
             if content_type.contains("multipart/form-data") {
                 let path = headers.get("Path").unwrap();
                 let response =
-                    handle_multipart_file_upload(content_type, &headers, &mut reader, path)?;
+                    handle_multipart_file_upload(content_type, &headers, &mut reader, path)
+                        .map_err(|err| {
+                            ApiError::new_with_html(400, format!("File upload error: {}", err))
+                        })?;
                 return Ok(response);
             } else {
                 body = parse_body(&headers, reader, &mut buffer)?;
@@ -330,7 +349,10 @@ fn handle_multipart_file_upload(
             break;
         }
 
-        let parts: Vec<&str> = line.trim().split(':').collect();
+        let parts: Vec<&str> = line.trim().split(':').map(|s| s.trim()).collect();
+        if parts.len() < 2 {
+            return Err("Error parsing multipart request".into());
+        }
         multipart_headers.insert(parts[0].to_owned(), parts[1].to_owned());
     }
 
@@ -343,13 +365,11 @@ fn handle_multipart_file_upload(
         .nth(1)
         .and_then(|s| s.split('\"').next())
         .ok_or("Error parsing file name")?;
-    println!("path: {}", path);
     let mut target_path = PathBuf::from("./").canonicalize()?.join(path);
-    println!("target_path: {:?}", target_path);
     target_path.push(filename);
 
     let current_dir = std::env::current_dir()?;
-    if !target_path.starts_with(&current_dir) {
+    if !target_path.starts_with(current_dir) {
         return Err("Only paths relative to the current directory are allowed".into());
     }
 

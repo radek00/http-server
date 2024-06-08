@@ -4,6 +4,7 @@ use std::{
 };
 
 use chrono::{DateTime, Utc};
+use scratch_server::api_error::ApiError;
 use serde::{Deserialize, Serialize};
 
 const SUFFIX: [&str; 9] = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
@@ -52,14 +53,17 @@ fn human_bytes<T: Into<f64>>(bytes: T) -> String {
     [&result, SUFFIX[base.floor() as usize]].join(" ")
 }
 
-pub fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::error::Error>> {
+pub fn list_directory(path: &str) -> Result<serde_json::Value, ApiError> {
     let base_root_path = Path::new("./").canonicalize()?;
     let target_path = PathBuf::from("./").join(path);
     let cannonical_target_path = target_path.canonicalize()?;
 
     let current_dir = std::env::current_dir()?;
-    if !cannonical_target_path.starts_with(&current_dir) {
-        return Err("Only paths relative to the current directory are allowed".into());
+    if !cannonical_target_path.starts_with(current_dir) {
+        return Err(ApiError::new_with_json(
+            400,
+            "Only paths relative to the current directory are allowed".to_string(),
+        ));
     }
 
     let mut current_full_path = String::new();
@@ -70,7 +74,6 @@ pub fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::erro
                 let part_name = c.as_os_str().to_string_lossy().to_string();
                 current_full_path.push_str(&part_name);
                 current_full_path.push('/');
-                //let full_path = format!("{}/{}", current_full_path, part_name);
                 PathParts {
                     part_name,
                     full_path: current_full_path.clone(),
@@ -90,7 +93,8 @@ pub fn list_directory(path: &str) -> Result<serde_json::Value, Box<dyn std::erro
             name: path.file_name().into_string().unwrap(),
             path: path
                 .path()
-                .strip_prefix(&base_root_path)?
+                .strip_prefix(&base_root_path)
+                .map_err(|err| ApiError::new_with_json(500, err.to_string()))?
                 .to_string_lossy()
                 .into_owned(),
             file_type: if path.path().is_dir() {
