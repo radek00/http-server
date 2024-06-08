@@ -106,6 +106,7 @@ document.getElementById('upload-form').addEventListener('submit', (event) => {
             alert('File uploaded successfully.');
             fetchDirectory(targetPath);
             uploadForm.reset();
+            uploadProgress.classList.add('d-none');
         } else {
             alert('An error occurred while uploading the file.');
         }
