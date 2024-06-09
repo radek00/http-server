@@ -6,7 +6,7 @@ use self::utils::list_directory;
 mod utils;
 
 pub fn create_routes(router: &mut Router) {
-    router.add_route("/{file}?", "GET", |_, params| {
+    router.add_route("/static/{file}?", "GET", |_, params| {
         let static_files = StaticFiles::new(); // Create a new instance of StaticFiles
         let file_name = match params.get("file") {
             Some(file) => file,
