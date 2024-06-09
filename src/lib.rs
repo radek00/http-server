@@ -172,7 +172,7 @@ impl HttpServer {
                 handle_connection(&mut stream, &router_clone)
                     .unwrap_or_else(|err| {
                         if let (Some(method), Some(path)) = (&err.method, &err.path) {
-                            router_clone.log_response(500, path, method).unwrap();
+                            router_clone.log_response(err.error_response.status_code, path, method).unwrap();
                         }
 
                         err.error_response
