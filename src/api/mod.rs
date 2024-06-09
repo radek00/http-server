@@ -56,4 +56,13 @@ pub fn create_routes(router: &mut Router) {
             200,
         ))
     });
+
+    router.add_route("/*", "GET", |_, _| {
+        let index = StaticFiles::new().get("index.html")?;
+        Ok(HttpResponse::new(
+            Body::StaticFile(index, "index.html".to_string()),
+            Some("text/html".to_string()),
+            200,
+        ))
+    });
 }
