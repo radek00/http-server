@@ -46,11 +46,15 @@ impl Router {
             + Sync
             + 'static,
     {
-        let pattern = format!(
-            "^{}{}$",
-            method,
-            path.replace('{', "(?P<").replace('}', ">[^/]+)")
-        );
+        let pattern = if path == "/*" {
+            format!("^{}.*$", method)
+        } else {
+            format!(
+                "^{}{}$",
+                method,
+                path.replace('{', "(?P<").replace('}', ">[^/]+)")
+            )
+        };
         let regex = Regex::new(&pattern).unwrap();
         self.routes.push(Route {
             pattern: regex,
