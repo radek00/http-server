@@ -2,6 +2,8 @@ const pathElem  = document.querySelector('.path-wrapper div');
 const upButton = document.getElementById('up-button');
 const uploadProgress = document.getElementById('upload-progress');
 const uploadForm = document.getElementById('upload-form');
+let currentPathElem = pathElem.lastChild;
+
 uploadForm.reset();
 
 let currentFiles = [];
@@ -20,6 +22,7 @@ function renderPath(pathArray) {
             pathLink.classList.toggle('current');
             currentPathElem = pathLink;
             fetchDirectory(path.full_path);
+            history.pushState({path: path.full_path}, '', path.full_path);
         };
         pathElem.appendChild(pathLink);
     });
@@ -41,9 +44,10 @@ async function renderFileTree(fileArray) {
             fileLink.onclick = (event) => {
                 event.preventDefault();
                 fetchDirectory(file.path);
+                history.pushState({path: file.path}, '', file.path);
             }
         } else {
-            fileLink.href = `api/files?path=${file.path}`;
+            fileLink.href = `/api/files?path=${file.path}`;
             fileLink.textContent = file.name;
         }
         name.appendChild(fileLink);
@@ -76,6 +80,7 @@ async function fetchDirectory(path = "./") {
 
 function onUpClick() {
     fetchDirectory(currentPaths[currentPaths.length - 2].full_path);
+    history.back();
 }
 
 function onUploadInputChange(event) {
@@ -83,9 +88,9 @@ function onUploadInputChange(event) {
 }
 
 document.getElementById('upload-form').addEventListener('submit', (event) => {
+    event.preventDefault();
     const progressValue = uploadProgress.firstElementChild;
     const targetPath = currentPaths[currentPaths.length - 1].full_path;
-    event.preventDefault();
     const file = document.querySelector("#upload-form input[type='file']");
     var formData = new FormData();
     formData.append('file', file.files[0]);
@@ -115,4 +120,10 @@ document.getElementById('upload-form').addEventListener('submit', (event) => {
     xhr.send(formData);
 });
 
-fetchDirectory();
+window.addEventListener('popstate', (event) => {
+    if (event.state) {
+        fetchDirectory(event.state.path);
+    }
+});
+
+fetchDirectory(history.state?.path || "./");
