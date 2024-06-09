@@ -11,7 +11,7 @@
     <section>
         <form id="upload-form">
             <label for="file">Upload file</label>
-            <input onchange="onUploadInputChange(event)" type="file" name="file" required>
+            <input onchange="onUploadInputChange(event)" type="file" id="file" required>
             <button type="submit">Upload</button>
         </form>
         <div id="upload-progress" class="d-none">Upload progress: <span>0%</span></div>
@@ -78,7 +78,7 @@
         gap: 0.5rem;
     }
     .path-wrapper div a.current {
-        color: red;
+        color:  #333333;
     }
 </style>
 </html>
