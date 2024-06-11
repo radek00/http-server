@@ -15,6 +15,7 @@ function renderPath(pathArray) {
         const pathLink = document.createElement('a');
         pathLink.href = '#';
         pathLink.textContent = idx === 0 ? "[root]" : path.part_name;
+        const isHalf = Math.ceil(pathArray.length / idx) === 2
 
         pathLink.onclick = (event) => {
             event.preventDefault();
@@ -22,7 +23,8 @@ function renderPath(pathArray) {
             pathLink.classList.toggle('current');
             currentPathElem = pathLink;
             fetchDirectory(path.full_path);
-            history.pushState({path: path.full_path}, '', path.full_path);
+            console.log(path);
+            history.pushState({path: path.full_path}, '', path.full_path.substring(1));
         };
         pathElem.appendChild(pathLink);
     });
