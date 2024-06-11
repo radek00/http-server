@@ -58,7 +58,9 @@ pub fn list_directory(path: &str) -> Result<serde_json::Value, ApiError> {
     let target_path = PathBuf::from("./").join(path);
     let cannonical_target_path = target_path.canonicalize()?;
 
-    let current_dir = std::env::current_dir()?;
+    let current_dir = std::env::current_dir()?.canonicalize()?;
+    println!("{:?}", current_dir);
+    println!("{:?}", cannonical_target_path);
     if !cannonical_target_path.starts_with(current_dir) {
         return Err(ApiError::new_with_json(
             400,
