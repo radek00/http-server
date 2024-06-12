@@ -55,12 +55,10 @@ fn human_bytes<T: Into<f64>>(bytes: T) -> String {
 
 pub fn list_directory(path: &str) -> Result<serde_json::Value, ApiError> {
     let base_root_path = Path::new("./").canonicalize()?;
-    let target_path = PathBuf::from("./").join(path);
+    let target_path = PathBuf::from("./").join(percent_encoding::percent_decode_str(path).decode_utf8_lossy().to_string());
     let cannonical_target_path = target_path.canonicalize()?;
 
     let current_dir = std::env::current_dir()?.canonicalize()?;
-    println!("{:?}", current_dir);
-    println!("{:?}", cannonical_target_path);
     if !cannonical_target_path.starts_with(current_dir) {
         return Err(ApiError::new_with_json(
             400,
