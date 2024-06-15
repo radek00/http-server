@@ -66,16 +66,21 @@ async function renderFileTree(fileArray) {
 
 async function fetchDirectory(path = "./") {
     const files = await fetch(`/api/directory?path=${path}`);
-    const directory = await files.json();
-    currentFiles = directory.files;
-    currentPaths = directory.paths;
-    renderFileTree(currentFiles);
-    renderPath(currentPaths);
-
-    if (currentPaths.length === 1) {
-        upButton.setAttribute('disabled', true);
+    if (!files.ok) {
+        const html = document.querySelector('html');
+        html.innerHTML = await files.text();
     } else {
-        upButton.removeAttribute('disabled');
+        const directory = await files.json();
+        currentFiles = directory.files;
+        currentPaths = directory.paths;
+        renderFileTree(currentFiles);
+        renderPath(currentPaths);
+    
+        if (currentPaths.length === 1) {
+            upButton.setAttribute('disabled', true);
+        } else {
+            upButton.removeAttribute('disabled');
+        }
     }
 
 }
