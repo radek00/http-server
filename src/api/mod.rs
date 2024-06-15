@@ -25,6 +25,10 @@ pub fn create_routes(router: &mut Router) {
                     .to_string(),
             ),
             200,
+        )
+        .add_response_header(
+            "Cache-Control".to_string(),
+            "public, max-age=31536000".to_string(),
         ))
     });
     router.add_route("/api/files", "GET", |_, params| {
