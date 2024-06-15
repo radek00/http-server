@@ -4,6 +4,8 @@ const uploadProgress = document.getElementById('upload-progress');
 const uploadForm = document.getElementById('upload-form');
 let currentPathElem = pathElem.lastChild;
 
+console.log('history', history.state)
+
 uploadForm.reset();
 
 let currentFiles = [];
@@ -126,4 +128,8 @@ window.addEventListener('popstate', (event) => {
     }
 });
 
-fetchDirectory(history.state?.path || "./");
+if (!history.state && window.location.pathname !== '/') {
+    fetchDirectory(`.${window.location.pathname}`);
+} else {
+    fetchDirectory(history.state?.path || "./");
+}
