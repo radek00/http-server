@@ -1,5 +1,6 @@
 use api_error::ApiError;
 use http_parse_error::HttpParseError;
+use include_dir::{include_dir, Dir};
 use logger::Logger;
 use native_tls::{Identity, TlsAcceptor};
 use std::borrow::Cow;
@@ -15,13 +16,13 @@ mod errors;
 mod http_response;
 mod logger;
 mod router;
-mod static_files;
 mod thread_pool;
 
 pub use errors::*;
 pub use http_response::*;
 pub use router::*;
-pub use static_files::*;
+
+pub static STATIC_FILES: Dir<'_> = include_dir!("src/dist");
 
 // #[derive(Debug)]
 // enum HttpMethod {
