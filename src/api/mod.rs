@@ -1,4 +1,4 @@
-use scratch_server::{api_error::ApiError, Body, HttpResponse, Router, StaticFiles};
+use scratch_server::{api_error::ApiError, Body, HttpResponse, Router, STATIC_FILES};
 use std::{fs::File, path::PathBuf};
 
 use self::utils::list_directory;
@@ -7,16 +7,17 @@ mod utils;
 
 pub fn create_routes(router: &mut Router) {
     router.add_route("/static/{file}?", "GET", |_, params| {
-        let static_files = StaticFiles::new(); // Create a new instance of StaticFiles
+        // Create a new instance of StaticFiles
         let file_name = match params.get("file") {
             Some(file) => file,
             None => "index.html",
         };
         Ok(HttpResponse::new(
             Body::StaticFile(
-                static_files
-                    .get(file_name)
-                    .map_err(|err| ApiError::new_with_html(404, err.to_string()))?,
+                STATIC_FILES
+                    .get_file(file_name)
+                    .ok_or(ApiError::new_with_html(404, "File not found".to_string()))?
+                    .contents(),
                 file_name.to_string(),
             ),
             Some(
@@ -62,7 +63,13 @@ pub fn create_routes(router: &mut Router) {
     });
 
     router.add_route("/*", "GET", |_, _| {
-        let index = StaticFiles::new().get("index.html")?;
+        for file in STATIC_FILES.files() {
+            println!("{:?}", file.path());
+        }
+        let index = STATIC_FILES
+            .get_file("index.html")
+            .ok_or(ApiError::new_with_html(404, "File not found".to_string()))?
+            .contents();
         Ok(HttpResponse::new(
             Body::StaticFile(index, "index.html".to_string()),
             Some("text/html".to_string()),

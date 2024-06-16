@@ -22,6 +22,7 @@ exclude = [
 [dependencies]
 chrono = "0.4.37"
 clap = "4.5.4"
+include_dir = "0.7.3"
 mime_guess = "2.0.4"
 native-tls = { version = "0.2.11", features = ["vendored"] }
 percent-encoding = "2.3.1"
