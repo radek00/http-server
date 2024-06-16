@@ -63,9 +63,6 @@ pub fn create_routes(router: &mut Router) {
     });
 
     router.add_route("/*", "GET", |_, _| {
-        for file in STATIC_FILES.files() {
-            println!("{:?}", file.path());
-        }
         let index = STATIC_FILES
             .get_file("index.html")
             .ok_or(ApiError::new_with_html(404, "File not found".to_string()))?
