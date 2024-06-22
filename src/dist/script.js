@@ -4,8 +4,6 @@ const uploadProgress = document.getElementById('upload-progress');
 const uploadForm = document.getElementById('upload-form');
 let currentPathElem = pathElem.lastChild;
 
-console.log('history', history.state)
-
 uploadForm.reset();
 
 let currentFiles = [];
