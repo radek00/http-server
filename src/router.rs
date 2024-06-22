@@ -21,6 +21,7 @@ type Handler =
 pub struct Route {
     pattern: Regex,
     handler: Handler,
+    method: String,
 }
 pub struct Router {
     routes: Vec<Route>,
@@ -47,18 +48,19 @@ impl Router {
             + 'static,
     {
         let pattern = if path == "/*" {
-            format!("^{}.*$", method)
+            "^.*$".to_string()
         } else {
             format!(
-                "^{}{}$",
-                method,
+                "^{}$",
                 path.replace('{', "(?P<").replace('}', ">[^/]+)")
             )
         };
+        println!("{:?}", pattern);
         let regex = Regex::new(&pattern).unwrap();
         self.routes.push(Route {
             pattern: regex,
             handler: Box::new(handler),
+            method: method.to_string(),
         });
     }
 
@@ -69,12 +71,17 @@ impl Router {
         data: Option<&str>,
     ) -> Result<HttpResponse, ApiError> {
         let stripped_path: Vec<&str> = path.splitn(2, '?').collect();
-        let pattern = format!("{}{}", method, stripped_path[0]);
+        println!("{:?}", stripped_path);
+        let pattern = format!("^{}$", stripped_path[0]);
+        println!("{:?}", pattern);
         for route in &self.routes {
-            let pattern_match = route.pattern.captures(&pattern);
+            let pattern_match = route.pattern.captures(stripped_path[0]);
 
             match pattern_match {
                 Some(pattern_match) => {
+                    if route.method != method {
+                        return Err(ApiError::new_with_json(405, "Method Not Allowed".to_string()))
+                    }
                     let mut param_dict: HashMap<&str, &str> = route
                         .pattern
                         .capture_names()
