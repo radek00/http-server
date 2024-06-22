@@ -1,4 +1,4 @@
-use scratch_server::{api_error::ApiError, Body, HttpResponse, Router, STATIC_FILES};
+use scratch_server::{api_error::ApiError, Body, HttpMethod, HttpResponse, Router, STATIC_FILES};
 use std::{fs::File, path::PathBuf};
 
 use self::utils::list_directory;
@@ -6,7 +6,7 @@ use self::utils::list_directory;
 mod utils;
 
 pub fn create_routes(router: &mut Router) {
-    router.add_route("/static/{file}?", "GET", |_, params| {
+    router.add_route("/static/{file}?", HttpMethod::GET, |_, params| {
         let file_name = match params.get("file") {
             Some(file) => file,
             None => "index.html",
@@ -31,7 +31,7 @@ pub fn create_routes(router: &mut Router) {
             "public, max-age=31536000".to_string(),
         ))
     });
-    router.add_route("/api/files", "GET", |_, params| {
+    router.add_route("/api/files", HttpMethod::GET, |_, params| {
         let file_path = PathBuf::from(params.get("path").ok_or("Missing path parameter")?);
         let file_name = file_path
             .file_name()
@@ -51,7 +51,7 @@ pub fn create_routes(router: &mut Router) {
         ))
     });
 
-    router.add_route("/api/directory", "GET", |_, params| {
+    router.add_route("/api/directory", HttpMethod::GET, |_, params| {
         Ok(HttpResponse::new(
             Body::Json(list_directory(
                 params.get("path").ok_or("Missing path parameter")?,
@@ -61,7 +61,7 @@ pub fn create_routes(router: &mut Router) {
         ))
     });
 
-    router.add_route("/*", "GET", |_, _| {
+    router.add_route("/*", HttpMethod::GET, |_, _| {
         let index = STATIC_FILES
             .get_file("index.html")
             .ok_or(ApiError::new_with_html(404, "File not found".to_string()))?

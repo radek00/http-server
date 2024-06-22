@@ -5,6 +5,35 @@ use termcolor::Color;
 
 use crate::{logger::Logger, ApiError, Body, HttpResponse};
 
+#[derive(Debug)]
+pub enum HttpMethod {
+    GET,
+    POST,
+    PUT,
+    DELETE,
+    PATCH,
+    OPTIONS,
+    HEAD,
+    TRACE,
+    CONNECT,
+}
+
+impl HttpMethod {
+    fn as_str(&self) -> &str {
+        match self {
+            HttpMethod::GET => "GET",
+            HttpMethod::POST => "POST",
+            HttpMethod::PUT => "PUT",
+            HttpMethod::DELETE => "DELETE",
+            HttpMethod::PATCH => "PATCH",
+            HttpMethod::OPTIONS => "OPTIONS",
+            HttpMethod::HEAD => "HEAD",
+            HttpMethod::TRACE => "TRACE",
+            HttpMethod::CONNECT => "CONNECT",
+        }
+    }
+}
+
 fn get_status_code_color(status_code: u16) -> Color {
     match status_code {
         100..=199 => Color::Cyan,
@@ -21,7 +50,7 @@ type Handler =
 pub struct Route {
     pattern: Regex,
     handler: Handler,
-    method: String,
+    method: HttpMethod,
 }
 pub struct Router {
     routes: Vec<Route>,
@@ -40,7 +69,7 @@ impl Router {
         self
     }
 
-    pub fn add_route<F>(&mut self, path: &str, method: &str, handler: F)
+    pub fn add_route<F>(&mut self, path: &str, method: HttpMethod, handler: F)
     where
         F: Fn(Option<&str>, HashMap<&str, &str>) -> Result<HttpResponse, ApiError>
             + Send
@@ -56,7 +85,7 @@ impl Router {
         self.routes.push(Route {
             pattern: regex,
             handler: Box::new(handler),
-            method: method.to_string(),
+            method,
         });
     }
 
@@ -72,7 +101,7 @@ impl Router {
 
             match pattern_match {
                 Some(pattern_match) => {
-                    if route.method != method {
+                    if route.method.as_str() != method {
                         return Err(ApiError::new_with_json(
                             405,
                             "Method Not Allowed".to_string(),
