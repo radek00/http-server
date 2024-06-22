@@ -50,12 +50,8 @@ impl Router {
         let pattern = if path == "/*" {
             "^.*$".to_string()
         } else {
-            format!(
-                "^{}$",
-                path.replace('{', "(?P<").replace('}', ">[^/]+)")
-            )
+            format!("^{}$", path.replace('{', "(?P<").replace('}', ">[^/]+)"))
         };
-        println!("{:?}", pattern);
         let regex = Regex::new(&pattern).unwrap();
         self.routes.push(Route {
             pattern: regex,
@@ -71,16 +67,16 @@ impl Router {
         data: Option<&str>,
     ) -> Result<HttpResponse, ApiError> {
         let stripped_path: Vec<&str> = path.splitn(2, '?').collect();
-        println!("{:?}", stripped_path);
-        let pattern = format!("^{}$", stripped_path[0]);
-        println!("{:?}", pattern);
         for route in &self.routes {
             let pattern_match = route.pattern.captures(stripped_path[0]);
 
             match pattern_match {
                 Some(pattern_match) => {
                     if route.method != method {
-                        return Err(ApiError::new_with_json(405, "Method Not Allowed".to_string()))
+                        return Err(ApiError::new_with_json(
+                            405,
+                            "Method Not Allowed".to_string(),
+                        ));
                     }
                     let mut param_dict: HashMap<&str, &str> = route
                         .pattern
