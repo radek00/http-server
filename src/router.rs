@@ -96,54 +96,93 @@ impl Router {
         data: Option<&str>,
     ) -> Result<HttpResponse, ApiError> {
         let stripped_path: Vec<&str> = path.splitn(2, '?').collect();
-        for route in &self.routes {
-            let pattern_match = route.pattern.captures(stripped_path[0]);
+        if method == HttpMethod::OPTIONS.as_str() {
+            let response = HttpResponse::new(Body::Text("Ok".to_string()), None, 200)
+                .add_response_header("Access-Control-Allow-Origin".to_string(), "*".to_string())
+                .add_response_header(
+                    "Access-Control-Allow-Methods".to_string(),
+                    "GET, POST, PUT, DELETE, PATCH, OPTIONS".to_string(),
+                )
+                .add_response_header(
+                    "Access-Control-Allow-Headers".to_string(),
+                    "Origin, X-Requested-With, Content-Type, Accept".to_string(),
+                )
+                .add_response_header(
+                    "Access-Control-Allow-Credentials".to_string(),
+                    "true".to_string(),
+                );
+            return Ok(response);
+        } else {
+            for route in &self.routes {
+                let pattern_match = route.pattern.captures(stripped_path[0]);
 
-            match pattern_match {
-                Some(pattern_match) => {
-                    if route.method.as_str() != method {
-                        return Err(ApiError::new_with_json(
-                            405,
-                            "Method Not Allowed".to_string(),
-                        ));
-                    }
-                    let mut param_dict: HashMap<&str, &str> = route
-                        .pattern
-                        .capture_names()
-                        .flatten()
-                        .filter_map(|n| Some((n, pattern_match.name(n)?.as_str())))
-                        .collect();
+                match pattern_match {
+                    Some(pattern_match) => {
+                        if route.method.as_str() != method {
+                            return Err(ApiError::new_with_json(
+                                405,
+                                "Method Not Allowed".to_string(),
+                            ));
+                        }
+                        let mut param_dict: HashMap<&str, &str> = route
+                            .pattern
+                            .capture_names()
+                            .flatten()
+                            .filter_map(|n| Some((n, pattern_match.name(n)?.as_str())))
+                            .collect();
 
-                    if stripped_path.len() == 2 {
-                        for param in stripped_path[1].split('&') {
-                            let pair: Vec<&str> = param.split('=').collect();
-                            if pair.len() == 2 {
-                                param_dict.insert(pair[0], pair[1]);
+                        if stripped_path.len() == 2 {
+                            for param in stripped_path[1].split('&') {
+                                let pair: Vec<&str> = param.split('=').collect();
+                                if pair.len() == 2 {
+                                    param_dict.insert(pair[0], pair[1]);
+                                }
                             }
                         }
+                        let mut response =
+                            (route.handler)(data, param_dict).map_err(|mut err| {
+                                err.method = Some(method.to_string());
+                                err.path = Some(stripped_path[0].to_string());
+                                err
+                            })?;
+
+                        if method == HttpMethod::OPTIONS.as_str() {
+                            response = response
+                                .add_response_header(
+                                    "Access-Control-Allow-Origin".to_string(),
+                                    "*".to_string(),
+                                )
+                                .add_response_header(
+                                    "Access-Control-Allow-Methods".to_string(),
+                                    "GET, POST, PUT, DELETE, PATCH, OPTIONS".to_string(),
+                                )
+                                .add_response_header(
+                                    "Access-Control-Allow-Headers".to_string(),
+                                    "Origin, X-Requested-With, Content-Type, Accept".to_string(),
+                                )
+                                .add_response_header(
+                                    "Access-Control-Allow-Credentials".to_string(),
+                                    "true".to_string(),
+                                );
+                        }
+
+                        self.log_response(response.status_code, stripped_path[0], method)?;
+
+                        return Ok(response);
                     }
-                    let response = (route.handler)(data, param_dict).map_err(|mut err| {
-                        err.method = Some(method.to_string());
-                        err.path = Some(stripped_path[0].to_string());
-                        err
-                    })?;
-
-                    self.log_response(response.status_code, stripped_path[0], method)?;
-
-                    return Ok(response);
+                    None => continue,
                 }
-                None => continue,
             }
+            let error_response = HttpResponse::new(
+                Body::Json(json!({"message": format!("No route found for path {}", path)})),
+                None,
+                404,
+            );
+
+            self.log_response(error_response.status_code, stripped_path[0], method)?;
+
+            Ok(error_response)
         }
-        let error_response = HttpResponse::new(
-            Body::Json(json!({"message": format!("No route found for path {}", path)})),
-            None,
-            404,
-        );
-
-        self.log_response(error_response.status_code, stripped_path[0], method)?;
-
-        Ok(error_response)
     }
     pub fn log_response(
         &self,

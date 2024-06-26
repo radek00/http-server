@@ -51,7 +51,7 @@ pub fn create_routes(router: &mut Router) {
         ))
     });
 
-    router.add_route("/api/directory", HttpMethod::GET, |_, params| {
+    router.add_route("/api/directory", HttpMethod::PUT, |_, params| {
         Ok(HttpResponse::new(
             Body::Json(list_directory(
                 params.get("path").ok_or("Missing path parameter")?,
