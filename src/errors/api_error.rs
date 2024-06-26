@@ -21,7 +21,7 @@ impl ApiError {
     pub fn new_with_json(code: u16, message: String) -> Self {
         ApiError {
             error_response: HttpResponse::new(
-                Body::Json(serde_json::json!({"message": message})),
+                Some(Body::Json(serde_json::json!({"message": message}))),
                 None,
                 code,
             ),
@@ -113,7 +113,7 @@ fn format_error(error_code: u16, message: String) -> HttpResponse {
         message
     );
     HttpResponse::new(
-        Body::Text(html),
+        Some(Body::Text(html)),
         Some(String::from("text/html")),
         error_code,
     )

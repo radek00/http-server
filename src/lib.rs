@@ -24,19 +24,6 @@ pub use router::*;
 
 pub static STATIC_FILES: Dir<'_> = include_dir!("src/dist");
 
-// #[derive(Debug)]
-// enum HttpMethod {
-//     GET,
-//     POST,
-//     PUT,
-//     DELETE,
-//     PATCH,
-//     OPTIONS,
-//     HEAD,
-//     TRACE,
-//     CONNECT,
-// }
-
 pub trait ReadWrite: Read + Write + Send + 'static {}
 
 impl<T: Read + Write + Send + 'static> ReadWrite for T {}
@@ -391,7 +378,10 @@ fn handle_multipart_file_upload(
     io::copy(&mut limited_reader, &mut file)?;
 
     let response = HttpResponse::new(
-        Body::Text(format!("File {} uploaded successfully.", filename)),
+        Some(Body::Text(format!(
+            "File {} uploaded successfully.",
+            filename
+        ))),
         Some(String::from("text/plain")),
         200,
     );
