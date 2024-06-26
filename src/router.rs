@@ -97,7 +97,7 @@ impl Router {
     ) -> Result<HttpResponse, ApiError> {
         let stripped_path: Vec<&str> = path.splitn(2, '?').collect();
         if method == HttpMethod::OPTIONS.as_str() {
-            let response = HttpResponse::new(Body::Text("Ok".to_string()), None, 200)
+            let response = HttpResponse::new(None, None, 204)
                 .add_response_header("Access-Control-Allow-Origin".to_string(), "*".to_string())
                 .add_response_header(
                     "Access-Control-Allow-Methods".to_string(),
@@ -111,7 +111,7 @@ impl Router {
                     "Access-Control-Allow-Credentials".to_string(),
                     "true".to_string(),
                 );
-            return Ok(response);
+            Ok(response)
         } else {
             for route in &self.routes {
                 let pattern_match = route.pattern.captures(stripped_path[0]);
@@ -174,7 +174,9 @@ impl Router {
                 }
             }
             let error_response = HttpResponse::new(
-                Body::Json(json!({"message": format!("No route found for path {}", path)})),
+                Some(Body::Json(
+                    json!({"message": format!("No route found for path {}", path)}),
+                )),
                 None,
                 404,
             );

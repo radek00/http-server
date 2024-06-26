@@ -12,13 +12,13 @@ pub fn create_routes(router: &mut Router) {
             None => "index.html",
         };
         Ok(HttpResponse::new(
-            Body::StaticFile(
+            Some(Body::StaticFile(
                 STATIC_FILES
                     .get_file(file_name)
                     .ok_or(ApiError::new_with_html(404, "File not found".to_string()))?
                     .contents(),
                 file_name.to_string(),
-            ),
+            )),
             Some(
                 mime_guess::from_path(file_name)
                     .first_or_text_plain()
@@ -45,17 +45,17 @@ pub fn create_routes(router: &mut Router) {
         );
         let file = File::open(file_path)?;
         Ok(HttpResponse::new(
-            Body::FileStream(file, file_name),
+            Some(Body::FileStream(file, file_name)),
             content_type,
             200,
         ))
     });
 
-    router.add_route("/api/directory", HttpMethod::PUT, |_, params| {
+    router.add_route("/api/directory", HttpMethod::GET, |_, params| {
         Ok(HttpResponse::new(
-            Body::Json(list_directory(
+            Some(Body::Json(list_directory(
                 params.get("path").ok_or("Missing path parameter")?,
-            )?),
+            )?)),
             None,
             200,
         ))
@@ -67,7 +67,7 @@ pub fn create_routes(router: &mut Router) {
             .ok_or(ApiError::new_with_html(404, "File not found".to_string()))?
             .contents();
         Ok(HttpResponse::new(
-            Body::StaticFile(index, "index.html".to_string()),
+            Some(Body::StaticFile(index, "index.html".to_string())),
             Some("text/html".to_string()),
             200,
         ))
