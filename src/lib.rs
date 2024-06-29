@@ -170,6 +170,12 @@ impl HttpServer {
                 Some(_) => String::from("Enabled"),
                 None => String::from("Disabled"),
             };
+            let cors = if self.router.hsa_cors() {
+                String::from("Enabled")
+            } else {
+                String::from("Disabled")
+            };
+
             logger.log_stdout(
                 r#"
 
@@ -189,6 +195,7 @@ impl HttpServer {
 Port: {}
 Threads: {}
 HTTPS: {}
+CORS: {}
 
 ====================
 Logs:"#,
@@ -196,6 +203,7 @@ Logs:"#,
                     (self.port.to_string(), Some(Color::Yellow)),
                     (self.threads.to_string(), Some(Color::Yellow)),
                     (https, Some(Color::Yellow)),
+                    (cors, Some(Color::Yellow)),
                 ],
             )
             .unwrap();
