@@ -85,52 +85,20 @@ pub struct HttpServer {
 }
 
 impl HttpServer {
-    pub fn build() -> HttpServer {
-        let mut args = clap::Command::new("Simple HTTP Server")
-            .version("1.0")
-            .author("radek00")
-            .about("Simlpe HTTP Server with TLS/SSL support. Implemented api endpoints allow for navigating file system directories, uploading and downloading files.")
-            .arg(clap::Arg::new("port")
-                .short('p')
-                .value_parser(clap::value_parser!(u16))
-                .default_value("7878")
-                .long("port")
-                .help("Sets the port number"))
-            .arg(clap::Arg::new("threads")
-                .short('t')
-                .value_parser(clap::value_parser!(usize))
-                .default_value("12")
-                .long("threads")
-                .help("Sets the number of threads"))
-            .arg(clap::Arg::new("cert")
-                .short('c')
-                .value_parser(clap::value_parser!(PathBuf))
-                .required(false)
-                .long("cert")
-                .help("TLS/SSL certificate"))
-            .arg(clap::Arg::new("certpass")
-                .long("certpass")
-                .default_value("")
-                .help("TLS/SSL certificate password"))
-            .arg(clap::Arg::new("silent")
-                .action(clap::ArgAction::SetTrue)
-                .short('s')
-                .long("silent")
-                .help("Disable logging"))
-            .get_matches();
-
-        let mut server = HttpServer {
-            port: args.remove_one::<u16>("port").unwrap(),
-            threads: args.remove_one::<usize>("threads").unwrap(),
-            cert_path: args.remove_one::<PathBuf>("cert"),
-            cert_pass: args.remove_one::<String>("certpass"),
+    pub fn build(
+        port: u16,
+        threads: usize,
+        cert_path: Option<PathBuf>,
+        cert_pass: Option<String>,
+    ) -> HttpServer {
+        HttpServer {
+            port,
+            threads,
+            cert_path,
+            cert_pass,
             router: Router::new(),
             logger: None,
-        };
-        if !args.get_flag("silent") {
-            server = server.with_logger();
         }
-        server
     }
     pub fn with_logger(mut self) -> Self {
         self.logger = Some(Arc::new(Logger::new()));
