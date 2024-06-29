@@ -43,6 +43,11 @@ pub fn build_server() -> HttpServer {
                 .long("cors")
                 .action(clap::ArgAction::SetTrue)
                 .help("Enable CORS with Access-Control-Allow-Origin header set to *"))
+            .arg(clap::Arg::new("ip")
+                .long("ip")
+                .default_value("0.0.0.0")
+                .value_parser(clap::value_parser!(std::net::IpAddr))
+                .help("Ip address to bind to [default: 0.0.0.0]"))
             .get_matches();
 
     let mut server = HttpServer::build(
@@ -50,6 +55,7 @@ pub fn build_server() -> HttpServer {
         args.remove_one::<usize>("threads").unwrap(),
         args.remove_one::<PathBuf>("cert"),
         args.remove_one::<String>("certpass"),
+        args.remove_one::<std::net::IpAddr>("ip").unwrap(),
     );
 
     if !args.get_flag("silent") {
