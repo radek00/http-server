@@ -7,7 +7,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{self, BufRead, BufReader, Read, Write};
-use std::net::{SocketAddr, TcpListener, TcpStream};
+use std::net::{IpAddr, SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::Arc;
 use termcolor::Color;
@@ -82,6 +82,7 @@ pub struct HttpServer {
     cert_pass: Option<String>,
     router: Router,
     logger: Option<Arc<Logger>>,
+    bind_address: IpAddr,
 }
 
 impl HttpServer {
@@ -90,6 +91,7 @@ impl HttpServer {
         threads: usize,
         cert_path: Option<PathBuf>,
         cert_pass: Option<String>,
+        bind_address: IpAddr,
     ) -> HttpServer {
         HttpServer {
             port,
@@ -98,6 +100,7 @@ impl HttpServer {
             cert_pass,
             router: Router::new(),
             logger: None,
+            bind_address,
         }
     }
     pub fn with_logger(mut self) -> Self {
@@ -126,7 +129,7 @@ impl HttpServer {
     }
     pub fn run(self) -> Result<(), Box<dyn std::error::Error>> {
         self.print_server_info();
-        let listener = TcpListener::bind(SocketAddr::from(([0, 0, 0, 0], self.port)))?;
+        let listener = TcpListener::bind(SocketAddr::from((self.bind_address, self.port)))?;
         let pool = thread_pool::ThreadPool::build(self.threads)?;
 
         let arc_router = Arc::new(self.router);
