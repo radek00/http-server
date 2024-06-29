@@ -1,4 +1,4 @@
-use scratch_server::HttpServer;
+use scratch_server::{Cors, HttpServer};
 use serde::{Deserialize, Serialize};
 
 mod api;
@@ -11,5 +11,14 @@ fn main() {
     let mut http_server = HttpServer::build();
     api::create_routes(&mut http_server.router);
 
-    http_server.run().expect("Starting server failed");
+    http_server
+        .with_cors_policy(
+            Cors::new()
+                .with_origins("*")
+                .with_methods("GET, POST, PUT, DELETE")
+                .with_headers("Content-Type, Authorization")
+                .with_credentials("true"),
+        )
+        .run()
+        .expect("Starting server failed");
 }

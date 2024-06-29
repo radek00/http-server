@@ -55,6 +55,7 @@ pub struct Route {
 pub struct Router {
     routes: Vec<Route>,
     logger: Option<Arc<Logger>>,
+    cors: Cors,
 }
 
 impl Router {
@@ -62,10 +63,16 @@ impl Router {
         Router {
             routes: Vec::new(),
             logger: None,
+            cors: Cors::new(),
         }
     }
     pub fn with_logger(mut self, logger: Option<Arc<Logger>>) -> Self {
         self.logger = logger;
+        self
+    }
+
+    pub fn with_cors(mut self, cors: Cors) -> Self {
+        self.cors = cors;
         self
     }
 
@@ -97,20 +104,10 @@ impl Router {
     ) -> Result<HttpResponse, ApiError> {
         let stripped_path: Vec<&str> = path.splitn(2, '?').collect();
         if method == HttpMethod::OPTIONS.as_str() {
-            let response = HttpResponse::new(None, None, 204)
-                .add_response_header("Access-Control-Allow-Origin".to_string(), "*".to_string())
-                .add_response_header(
-                    "Access-Control-Allow-Methods".to_string(),
-                    "GET, POST, PUT, DELETE, PATCH, OPTIONS".to_string(),
-                )
-                .add_response_header(
-                    "Access-Control-Allow-Headers".to_string(),
-                    "Origin, X-Requested-With, Content-Type, Accept".to_string(),
-                )
-                .add_response_header(
-                    "Access-Control-Allow-Credentials".to_string(),
-                    "true".to_string(),
-                );
+            let mut response = HttpResponse::new(None, None, 204);
+            for (key, value) in &self.cors.headers {
+                response = response.add_response_header(key.to_string(), value.to_string());
+            }
             Ok(response)
         } else {
             for route in &self.routes {
@@ -146,24 +143,9 @@ impl Router {
                                 err
                             })?;
 
-                        if method == HttpMethod::OPTIONS.as_str() {
-                            response = response
-                                .add_response_header(
-                                    "Access-Control-Allow-Origin".to_string(),
-                                    "*".to_string(),
-                                )
-                                .add_response_header(
-                                    "Access-Control-Allow-Methods".to_string(),
-                                    "GET, POST, PUT, DELETE, PATCH, OPTIONS".to_string(),
-                                )
-                                .add_response_header(
-                                    "Access-Control-Allow-Headers".to_string(),
-                                    "Origin, X-Requested-With, Content-Type, Accept".to_string(),
-                                )
-                                .add_response_header(
-                                    "Access-Control-Allow-Credentials".to_string(),
-                                    "true".to_string(),
-                                );
+                        for (key, value) in &self.cors.headers {
+                            response =
+                                response.add_response_header(key.to_string(), value.to_string());
                         }
 
                         self.log_response(response.status_code, stripped_path[0], method)?;
@@ -212,6 +194,54 @@ impl Router {
 }
 
 impl Default for Router {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub struct Cors {
+    headers: Vec<(String, String)>,
+}
+
+impl Cors {
+    pub fn new() -> Self {
+        Cors {
+            headers: Vec::new(),
+        }
+    }
+
+    pub fn with_origins(mut self, value: &str) -> Self {
+        self.headers
+            .push(("Access-Control-Allow-Origin".to_string(), value.to_string()));
+        self
+    }
+
+    pub fn with_methods(mut self, value: &str) -> Self {
+        self.headers.push((
+            "Access-Control-Allow-Methods".to_string(),
+            value.to_string(),
+        ));
+        self
+    }
+
+    pub fn with_headers(mut self, value: &str) -> Self {
+        self.headers.push((
+            "Access-Control-Allow-Headers".to_string(),
+            value.to_string(),
+        ));
+        self
+    }
+
+    pub fn with_credentials(mut self, value: &str) -> Self {
+        self.headers.push((
+            "Access-Control-Allow-Credentials".to_string(),
+            value.to_string(),
+        ));
+        self
+    }
+}
+
+impl Default for Cors {
     fn default() -> Self {
         Self::new()
     }
