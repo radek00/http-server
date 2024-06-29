@@ -139,6 +139,11 @@ impl HttpServer {
             .with_logger(Some(Arc::clone(self.logger.as_ref().unwrap())));
         self
     }
+
+    pub fn with_cors_policy(mut self, policy: Cors) -> Self {
+        self.router = self.router.with_cors(policy);
+        self
+    }
     pub fn run(self) -> Result<(), Box<dyn std::error::Error>> {
         self.print_server_info();
         let listener = TcpListener::bind(SocketAddr::from(([0, 0, 0, 0], self.port)))?;
