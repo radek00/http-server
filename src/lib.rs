@@ -76,11 +76,11 @@ impl NetworkStream {
 }
 
 pub struct HttpServer {
-    pub port: u16,
-    pub threads: usize,
-    pub cert_path: Option<PathBuf>,
-    pub cert_pass: Option<String>,
-    pub router: Router,
+    port: u16,
+    threads: usize,
+    cert_path: Option<PathBuf>,
+    cert_pass: Option<String>,
+    router: Router,
     logger: Option<Arc<Logger>>,
 }
 
@@ -137,6 +137,18 @@ impl HttpServer {
         self.router = self
             .router
             .with_logger(Some(Arc::clone(self.logger.as_ref().unwrap())));
+        self
+    }
+
+    pub fn get_router(&mut self) -> &mut Router {
+        &mut self.router
+    }
+
+    pub fn add_routes<F>(mut self, routes: F) -> Self
+    where
+        F: Fn(&mut Router) + Send + Sync + 'static,
+    {
+        routes(&mut self.router);
         self
     }
 
