@@ -1,5 +1,5 @@
 use scratch_server::{
-    api_error::ApiError, Body, HttpMethod, HttpResponse, HttpServer, Router, STATIC_FILES,
+    api_error::ApiError, Body, Cors, HttpMethod, HttpResponse, HttpServer, Router, STATIC_FILES,
 };
 use std::{fs::File, path::PathBuf};
 
@@ -39,6 +39,10 @@ pub fn build_server() -> HttpServer {
                 .short('s')
                 .long("silent")
                 .help("Disable logging"))
+            .arg(clap::Arg::new("cors")
+                .long("cors")
+                .action(clap::ArgAction::SetTrue)
+                .help("Enable CORS with Access-Control-Allow-Origin header set to *"))
             .get_matches();
 
     let mut server = HttpServer::build(
@@ -50,6 +54,16 @@ pub fn build_server() -> HttpServer {
 
     if !args.get_flag("silent") {
         server = server.with_logger();
+    }
+
+    if args.get_flag("cors") {
+        server = server.with_cors_policy(
+            Cors::new()
+                .with_origins("*")
+                .with_methods("GET, POST, PUT, DELETE")
+                .with_headers("Content-Type, Authorization")
+                .with_credentials("true"),
+        );
     }
     server
 }
@@ -101,7 +115,7 @@ pub fn create_routes() -> Box<dyn Fn(&mut Router) + Send + Sync> {
             ))
         });
 
-        router.add_route("/api/directory", HttpMethod::PUT, |_, params| {
+        router.add_route("/api/directory", HttpMethod::GET, |_, params| {
             Ok(HttpResponse::new(
                 Some(Body::Json(list_directory(
                     params.get("path").ok_or("Missing path parameter")?,

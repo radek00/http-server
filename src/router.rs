@@ -55,7 +55,7 @@ pub struct Route {
 pub struct Router {
     routes: Vec<Route>,
     logger: Option<Arc<Logger>>,
-    cors: Cors,
+    cors: Option<Cors>,
 }
 
 impl Router {
@@ -63,7 +63,7 @@ impl Router {
         Router {
             routes: Vec::new(),
             logger: None,
-            cors: Cors::new(),
+            cors: None,
         }
     }
     pub fn with_logger(mut self, logger: Option<Arc<Logger>>) -> Self {
@@ -72,8 +72,12 @@ impl Router {
     }
 
     pub fn with_cors(mut self, cors: Cors) -> Self {
-        self.cors = cors;
+        self.cors = Some(cors);
         self
+    }
+
+    pub fn hsa_cors(&self) -> bool {
+        self.cors.is_some()
     }
 
     pub fn add_route<F>(&mut self, path: &str, method: HttpMethod, handler: F)
@@ -105,8 +109,10 @@ impl Router {
         let stripped_path: Vec<&str> = path.splitn(2, '?').collect();
         if method == HttpMethod::OPTIONS.as_str() {
             let mut response = HttpResponse::new(None, None, 204);
-            for (key, value) in &self.cors.headers {
-                response = response.add_response_header(key.to_string(), value.to_string());
+            if let Some(cors) = &self.cors {
+                for (key, value) in &cors.headers {
+                    response = response.add_response_header(key.to_string(), value.to_string());
+                }
             }
             Ok(response)
         } else {
@@ -143,9 +149,11 @@ impl Router {
                                 err
                             })?;
 
-                        for (key, value) in &self.cors.headers {
-                            response =
-                                response.add_response_header(key.to_string(), value.to_string());
+                        if let Some(cors) = &self.cors {
+                            for (key, value) in &cors.headers {
+                                response = response
+                                    .add_response_header(key.to_string(), value.to_string());
+                            }
                         }
 
                         self.log_response(response.status_code, stripped_path[0], method)?;
