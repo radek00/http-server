@@ -137,7 +137,6 @@ impl HttpServer {
             let Ok(stream) = network_stream.get_stream(stream) else {
                 continue;
             };
-            println!("Connection from: {}", peer_addr.ip());
             let mut stream = stream.delegate.take().unwrap();
 
             let router_clone = Arc::clone(&arc_router);
