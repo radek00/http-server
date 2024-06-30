@@ -1,6 +1,6 @@
 use regex::Regex;
 use serde_json::json;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, net::IpAddr, sync::Arc};
 use termcolor::Color;
 
 use crate::{logger::Logger, ApiError, Body, HttpResponse};
@@ -105,6 +105,7 @@ impl Router {
         path: &str,
         method: &str,
         data: Option<&str>,
+        peer_addr: IpAddr,
     ) -> Result<HttpResponse, ApiError> {
         let stripped_path: Vec<&str> = path.splitn(2, '?').collect();
         if method == HttpMethod::OPTIONS.as_str() {
@@ -156,7 +157,12 @@ impl Router {
                             }
                         }
 
-                        self.log_response(response.status_code, stripped_path[0], method)?;
+                        self.log_response(
+                            response.status_code,
+                            stripped_path[0],
+                            method,
+                            peer_addr,
+                        )?;
 
                         return Ok(response);
                     }
@@ -171,7 +177,12 @@ impl Router {
                 404,
             );
 
-            self.log_response(error_response.status_code, stripped_path[0], method)?;
+            self.log_response(
+                error_response.status_code,
+                stripped_path[0],
+                method,
+                peer_addr,
+            )?;
 
             Ok(error_response)
         }
@@ -181,6 +192,7 @@ impl Router {
         status_code: u16,
         path: &str,
         method: &str,
+        peer_addr: IpAddr,
     ) -> Result<(), Box<dyn std::error::Error>> {
         if let Some(logger) = &self.logger {
             let time_string = chrono::offset::Local::now()
@@ -190,12 +202,13 @@ impl Router {
 
             let args = vec![
                 (time_string, Some(Color::White)),
+                (peer_addr.to_string(), Some(Color::Rgb(255, 167, 7))),
                 (status_code.to_string(), Some(status_code_color)),
                 (method.to_string(), Some(Color::White)),
                 (path.to_string(), Some(Color::White)),
             ];
 
-            logger.log_stdout("{} - {} - {} {}", args)?;
+            logger.log_stdout("{} - {} - {} - {} {}", args)?;
         }
         Ok(())
     }

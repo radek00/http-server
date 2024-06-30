@@ -111,10 +111,6 @@ impl HttpServer {
         self
     }
 
-    pub fn get_router(&mut self) -> &mut Router {
-        &mut self.router
-    }
-
     pub fn add_routes<F>(mut self, routes: F) -> Self
     where
         F: Fn(&mut Router) + Send + Sync + 'static,
@@ -136,20 +132,28 @@ impl HttpServer {
         let mut network_stream =
             NetworkStream::new(self.cert_path.as_ref(), self.cert_pass.as_ref())?;
         for stream in listener.incoming() {
-            let Ok(stream) = network_stream.get_stream(stream?) else {
+            let stream = stream?;
+            let peer_addr = stream.peer_addr()?;
+            let Ok(stream) = network_stream.get_stream(stream) else {
                 continue;
             };
+            println!("Connection from: {}", peer_addr.ip());
             let mut stream = stream.delegate.take().unwrap();
 
             let router_clone = Arc::clone(&arc_router);
             let logger_clone = self.logger.clone();
 
             pool.execute(move || {
-                handle_connection(&mut stream, &router_clone)
+                handle_connection(&mut stream, &router_clone, peer_addr.ip())
                     .unwrap_or_else(|err| {
                         if let (Some(method), Some(path)) = (&err.method, &err.path) {
                             router_clone
-                                .log_response(err.error_response.status_code, path, method)
+                                .log_response(
+                                    err.error_response.status_code,
+                                    path,
+                                    method,
+                                    peer_addr.ip(),
+                                )
                                 .unwrap();
                         }
 
@@ -262,6 +266,7 @@ fn parse_http<'a>(
 fn handle_connection(
     stream: &mut Box<dyn ReadWrite>,
     router: &Arc<Router>,
+    peer_addr: IpAddr,
 ) -> Result<HttpResponse, ApiError> {
     let mut reader = BufReader::new(&mut *stream);
 
@@ -290,7 +295,7 @@ fn handle_connection(
         }
     }
 
-    let response = router.route(path, method, body.as_deref())?;
+    let response = router.route(path, method, body.as_deref(), peer_addr)?;
     Ok(response)
 }
 
