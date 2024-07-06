@@ -29,6 +29,14 @@ impl ApiError {
             path: None,
         }
     }
+
+    pub fn new_with_custom(response: HttpResponse) -> Self {
+        ApiError {
+            error_response: response,
+            method: None,
+            path: None,
+        }
+    }
 }
 
 impl fmt::Display for ApiError {
