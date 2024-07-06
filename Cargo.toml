@@ -20,6 +20,7 @@ exclude = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+base64 = "0.22.1"
 chrono = "0.4.37"
 clap = "4.5.4"
 include_dir = "0.7.3"
