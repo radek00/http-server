@@ -111,6 +111,11 @@ impl HttpServer {
         self
     }
 
+    pub fn with_credentials(mut self, password: &str, username: &str) -> Self {
+        self.router = self.router.with_credentials(username, password);
+        self
+    }
+
     pub fn add_routes<F>(mut self, routes: F) -> Self
     where
         F: Fn(&mut Router) + Send + Sync + 'static,
