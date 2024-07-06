@@ -8,6 +8,13 @@ use self::utils::list_directory;
 mod utils;
 
 pub fn build_server() -> HttpServer {
+    let username_password_validator = |s: &str| {
+        if s.contains(':') && s.split(':').count() == 2 {
+            Ok(s.to_owned())
+        } else {
+            Err(String::from("The format must be username:password"))
+        }
+    };
     let mut args = clap::Command::new("Simple HTTP Server")
             .version("1.0")
             .author("radek00")
@@ -48,6 +55,11 @@ pub fn build_server() -> HttpServer {
                 .default_value("0.0.0.0")
                 .value_parser(clap::value_parser!(std::net::IpAddr))
                 .help("Ip address to bind to [default: 0.0.0.0]"))
+            .arg(clap::Arg::new("auth")
+                .long("auth")
+                .short('a')
+                .value_parser(username_password_validator)
+                .help("Enable HTTP Basic Auth. Pass username:password as argument"))
             .get_matches();
 
     let mut server = HttpServer::build(
@@ -57,6 +69,11 @@ pub fn build_server() -> HttpServer {
         args.remove_one::<String>("certpass"),
         args.remove_one::<std::net::IpAddr>("ip").unwrap(),
     );
+
+    if let Some(credentials) = args.remove_one::<String>("auth") {
+        let credentials = credentials.split(':').collect::<Vec<&str>>();
+        server = server.with_credentials(credentials[0], credentials[1]);
+    }
 
     if !args.get_flag("silent") {
         server = server.with_logger();
