@@ -1,3 +1,4 @@
+use base64::{prelude::BASE64_STANDARD, Engine};
 use regex::Regex;
 use serde_json::json;
 use std::{collections::HashMap, net::IpAddr, sync::Arc};
@@ -51,6 +52,7 @@ pub struct Route {
     pattern: Regex,
     handler: Handler,
     method: HttpMethod,
+    authorize: bool,
 }
 pub struct Router {
     routes: Vec<Route>,
@@ -80,7 +82,7 @@ impl Router {
         self.cors.is_some()
     }
 
-    pub fn add_route<F>(&mut self, path: &str, method: HttpMethod, handler: F)
+    pub fn add_route<F>(&mut self, path: &str, method: HttpMethod, handler: F, authorize: bool)
     where
         F: Fn(Option<&str>, HashMap<&str, &str>) -> Result<HttpResponse, ApiError>
             + Send
@@ -97,6 +99,7 @@ impl Router {
             pattern: regex,
             handler: Box::new(handler),
             method,
+            authorize,
         });
     }
 
@@ -106,6 +109,7 @@ impl Router {
         method: &str,
         data: Option<&str>,
         peer_addr: IpAddr,
+        headers: &HashMap<&str, &str>,
     ) -> Result<HttpResponse, ApiError> {
         let stripped_path: Vec<&str> = path.splitn(2, '?').collect();
         if method == HttpMethod::OPTIONS.as_str() {
@@ -127,6 +131,25 @@ impl Router {
                                 405,
                                 "Method Not Allowed".to_string(),
                             ));
+                        }
+                        if route.authorize {
+                            if let Some(auth_header) = headers.get("Authorization") {
+                                //perform challenge
+                                challenge_basic_auth(auth_header, "password", "Radek")?;
+                                //if unauthorized do the same thing as else block
+                                //if authorized continue
+                            } else {
+                                //no header found so return unauthorized with the proposed challenge
+                                return Ok(HttpResponse::new(
+                                    Some(Body::Json(json!({"message": "Unauthorized"}))),
+                                    None,
+                                    401,
+                                )
+                                .add_response_header(
+                                    "WWW-Authenticate".to_string(),
+                                    "Basic".to_string(),
+                                ));
+                            }
                         }
                         let mut param_dict: HashMap<&str, &str> = route
                             .pattern
@@ -266,4 +289,48 @@ impl Default for Cors {
     fn default() -> Self {
         Self::new()
     }
+}
+
+fn challenge_basic_auth(
+    auth_header: &str,
+    expectedd_passwd: &str,
+    expected_username: &str,
+) -> Result<(), ApiError> {
+    let auth_parts: Vec<&str> = auth_header.split_whitespace().collect();
+    if auth_parts.len() != 2 {
+        //return unauthorized with challenge
+        let err = ApiError::new_with_custom(
+            HttpResponse::new(
+                Some(Body::Json(json!({"message": "Unauthorized"}))),
+                None,
+                401,
+            )
+            .add_response_header("WWW-Authenticate".to_string(), "Basic".to_string()),
+        );
+        return Err(err);
+    }
+    let auth_type = auth_parts[0];
+    let auth_value = auth_parts[1];
+    if auth_type != "Basic" {
+        //return unauthorized with challenge
+        return Err(ApiError::new_with_json(
+            401,
+            "Unauthorized - unsupported auth challenge".to_string(),
+        ));
+    }
+    let decoded = BASE64_STANDARD.decode(auth_value).unwrap();
+    let decoded_str = String::from_utf8(decoded).unwrap();
+    let auth_parts: Vec<&str> = decoded_str.split(':').collect();
+    if auth_parts.len() != 2 {
+        //return unauthorized with challenge
+        return Err(ApiError::new_with_json(401, "Unauthorized".to_string()));
+    }
+    let username = auth_parts[0];
+    let password = auth_parts[1];
+
+    if (username != expected_username) || (password != expectedd_passwd) {
+        //return unauthorized with challenge
+        return Err(ApiError::new_with_json(401, "Unauthorized".to_string()));
+    }
+    Ok(())
 }

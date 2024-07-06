@@ -294,7 +294,7 @@ fn handle_connection(
         }
     }
 
-    let response = router.route(path, method, body.as_deref(), peer_addr)?;
+    let response = router.route(path, method, body.as_deref(), peer_addr, &headers)?;
     Ok(response)
 }
 
