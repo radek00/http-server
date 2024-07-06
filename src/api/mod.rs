@@ -76,72 +76,105 @@ pub fn build_server() -> HttpServer {
 
 pub fn create_routes() -> Box<dyn Fn(&mut Router) + Send + Sync> {
     let closure = |router: &mut Router| {
-        router.add_route("/static/{file}?", HttpMethod::GET, |_, params| {
-            let file_name = match params.get("file") {
-                Some(file) => file,
-                None => "index.html",
-            };
-            Ok(HttpResponse::new(
-                Some(Body::StaticFile(
-                    STATIC_FILES
-                        .get_file(file_name)
-                        .ok_or(ApiError::new_with_html(404, "File not found".to_string()))?
-                        .contents(),
-                    file_name.to_string(),
-                )),
-                Some(
-                    mime_guess::from_path(file_name)
-                        .first_or_text_plain()
+        router.add_route(
+            "/static/{file}?",
+            HttpMethod::GET,
+            |_, params| {
+                let file_name = match params.get("file") {
+                    Some(file) => file,
+                    None => "index.html",
+                };
+                Ok(HttpResponse::new(
+                    Some(Body::StaticFile(
+                        STATIC_FILES
+                            .get_file(file_name)
+                            .ok_or(ApiError::new_with_html(404, "File not found".to_string()))?
+                            .contents(),
+                        file_name.to_string(),
+                    )),
+                    Some(
+                        mime_guess::from_path(file_name)
+                            .first_or_text_plain()
+                            .to_string(),
+                    ),
+                    200,
+                )
+                .add_response_header(
+                    "Cache-Control".to_string(),
+                    "public, max-age=31536000".to_string(),
+                ))
+            },
+            false,
+        );
+        router.add_route(
+            "/api/files",
+            HttpMethod::GET,
+            |_, params| {
+                let file_path = PathBuf::from(params.get("path").ok_or("Missing path parameter")?);
+                let file_name = file_path
+                    .file_name()
+                    .ok_or("No file name")?
+                    .to_string_lossy()
+                    .to_string();
+                let content_type = Some(
+                    mime_guess::from_path(&file_name)
+                        .first_or_octet_stream()
                         .to_string(),
-                ),
-                200,
-            )
-            .add_response_header(
-                "Cache-Control".to_string(),
-                "public, max-age=31536000".to_string(),
-            ))
-        });
-        router.add_route("/api/files", HttpMethod::GET, |_, params| {
-            let file_path = PathBuf::from(params.get("path").ok_or("Missing path parameter")?);
-            let file_name = file_path
-                .file_name()
-                .ok_or("No file name")?
-                .to_string_lossy()
-                .to_string();
-            let content_type = Some(
-                mime_guess::from_path(&file_name)
-                    .first_or_octet_stream()
-                    .to_string(),
-            );
-            let file = File::open(file_path)?;
-            Ok(HttpResponse::new(
-                Some(Body::FileStream(file, file_name)),
-                content_type,
-                200,
-            ))
-        });
+                );
+                let file = File::open(file_path)?;
+                Ok(HttpResponse::new(
+                    Some(Body::FileStream(file, file_name)),
+                    content_type,
+                    200,
+                ))
+            },
+            false,
+        );
 
-        router.add_route("/api/directory", HttpMethod::GET, |_, params| {
-            Ok(HttpResponse::new(
-                Some(Body::Json(list_directory(
-                    params.get("path").ok_or("Missing path parameter")?,
-                )?)),
-                None,
-                200,
-            ))
-        });
+        router.add_route(
+            "/api/directory",
+            HttpMethod::GET,
+            |_, params| {
+                Ok(HttpResponse::new(
+                    Some(Body::Json(list_directory(
+                        params.get("path").ok_or("Missing path parameter")?,
+                    )?)),
+                    None,
+                    200,
+                ))
+            },
+            false,
+        );
 
-        router.add_route("/*", HttpMethod::GET, |_, _| {
-            let index = STATIC_FILES
-                .get_file("index.html")
-                .ok_or(ApiError::new_with_html(404, "File not found".to_string()))?
-                .contents();
-            Ok(HttpResponse::new(
-                Some(Body::StaticFile(index, "index.html".to_string())),
-                Some("text/html".to_string()),
-                200,
-            ))
-        });
+        router.add_route(
+            "/api/auth",
+            HttpMethod::POST,
+            |_, _| {
+                Ok(HttpResponse::new(
+                    Some(Body::Text("Congrats".to_string())),
+                    Some("plain/text".to_string()),
+                    200,
+                ))
+            },
+            true,
+        );
+
+        router.add_route(
+            "/*",
+            HttpMethod::GET,
+            |_, _| {
+                let index = STATIC_FILES
+                    .get_file("index.html")
+                    .ok_or(ApiError::new_with_html(404, "File not found".to_string()))?
+                    .contents();
+                Ok(HttpResponse::new(
+                    Some(Body::StaticFile(index, "index.html".to_string())),
+                    Some("text/html".to_string()),
+                    200,
+                ))
+            },
+            false,
+        );
     };
 
     Box::new(closure)
