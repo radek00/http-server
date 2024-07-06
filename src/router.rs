@@ -19,6 +19,11 @@ pub enum HttpMethod {
     CONNECT,
 }
 
+struct Credentials {
+    username: String,
+    password: String,
+}
+
 impl HttpMethod {
     fn as_str(&self) -> &str {
         match self {
@@ -58,6 +63,7 @@ pub struct Router {
     routes: Vec<Route>,
     logger: Option<Arc<Logger>>,
     cors: Option<Cors>,
+    credentials: Option<Credentials>,
 }
 
 impl Router {
@@ -66,6 +72,7 @@ impl Router {
             routes: Vec::new(),
             logger: None,
             cors: None,
+            credentials: None,
         }
     }
     pub fn with_logger(mut self, logger: Option<Arc<Logger>>) -> Self {
@@ -80,6 +87,14 @@ impl Router {
 
     pub fn hsa_cors(&self) -> bool {
         self.cors.is_some()
+    }
+
+    pub fn with_credentials(mut self, password: &str, username: &str) -> Self {
+        self.credentials = Some(Credentials {
+            username: username.to_string(),
+            password: password.to_string(),
+        });
+        self
     }
 
     pub fn add_route<F>(&mut self, path: &str, method: HttpMethod, handler: F, authorize: bool)
@@ -133,21 +148,28 @@ impl Router {
                             ));
                         }
                         if route.authorize {
-                            if let Some(auth_header) = headers.get("Authorization") {
-                                //perform challenge
-                                challenge_basic_auth(auth_header, "password", "Radek")?;
-                                //if unauthorized do the same thing as else block
-                                //if authorized continue
+                            if let Some(credentials) = &self.credentials {
+                                if let Some(auth_header) = headers.get("Authorization") {
+                                    challenge_basic_auth(
+                                        auth_header,
+                                        &credentials.password,
+                                        &credentials.username,
+                                    )?;
+                                } else {
+                                    return Ok(HttpResponse::new(
+                                        Some(Body::Json(json!({"message": "Unauthorized"}))),
+                                        None,
+                                        401,
+                                    )
+                                    .add_response_header(
+                                        "WWW-Authenticate".to_string(),
+                                        "Basic".to_string(),
+                                    ));
+                                }
                             } else {
-                                //no header found so return unauthorized with the proposed challenge
-                                return Ok(HttpResponse::new(
-                                    Some(Body::Json(json!({"message": "Unauthorized"}))),
-                                    None,
-                                    401,
-                                )
-                                .add_response_header(
-                                    "WWW-Authenticate".to_string(),
-                                    "Basic".to_string(),
+                                return Err(ApiError::new_with_json(
+                                    500,
+                                    "Missing credentials configuration".to_string(),
                                 ));
                             }
                         }
