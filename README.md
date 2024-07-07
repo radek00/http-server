@@ -7,6 +7,9 @@ Simple http server writen from scratch in Rust. Implemented api endpoints allow 
 - File upload/download
 - Static files serving
 - TLS/SSL support
+- Colorful terminal logs
+- CORS configuration
+- Basic HTTP Auth
 
 ## Usage
 ```
@@ -15,10 +18,15 @@ Simlpe HTTP Server with TLS/SSL support. Implemented api endpoints allow for nav
 Usage: http-server [OPTIONS]
 
 Options:
+Options:
   -p, --port <port>          Sets the port number [default: 7878]
-  -t, --threads <threads>    Sets the number of threads [default: 4]
+  -t, --threads <threads>    Sets the number of threads [default: 12]
   -c, --cert <cert>          TLS/SSL certificate
       --certpass <certpass>  TLS/SSL certificate password [default: ]
+  -s, --silent               Disable logging
+      --cors                 Enable CORS with Access-Control-Allow-Origin header set to *
+      --ip <ip>              Ip address to bind to [default: 0.0.0.0] [default: 0.0.0.0]
+  -a, --auth <auth>          Enable HTTP Basic Auth. Pass username:password as argument
   -h, --help                 Print help
   -V, --version              Print version
 ```
