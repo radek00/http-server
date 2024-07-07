@@ -121,7 +121,7 @@ pub fn create_routes() -> Box<dyn Fn(&mut Router) + Send + Sync> {
                     "public, max-age=31536000".to_string(),
                 ))
             },
-            false,
+            true,
         );
         router.add_route(
             "/api/files",
@@ -145,7 +145,7 @@ pub fn create_routes() -> Box<dyn Fn(&mut Router) + Send + Sync> {
                     200,
                 ))
             },
-            false,
+            true,
         );
 
         router.add_route(
@@ -160,7 +160,7 @@ pub fn create_routes() -> Box<dyn Fn(&mut Router) + Send + Sync> {
                     200,
                 ))
             },
-            false,
+            true,
         );
 
         router.add_route(
@@ -190,7 +190,7 @@ pub fn create_routes() -> Box<dyn Fn(&mut Router) + Send + Sync> {
                     200,
                 ))
             },
-            false,
+            true,
         );
     };
 
