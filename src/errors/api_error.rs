@@ -18,7 +18,7 @@ impl ApiError {
         }
     }
 
-    pub fn new_with_json(code: u16, message: String) -> Self {
+    pub fn new_with_json(code: u16, message: &str) -> Self {
         ApiError {
             error_response: HttpResponse::new(
                 Some(Body::Json(serde_json::json!({"message": message}))),
@@ -55,19 +55,19 @@ impl From<std::io::Error> for ApiError {
 
 impl From<Box<dyn std::error::Error>> for ApiError {
     fn from(error: Box<dyn std::error::Error>) -> ApiError {
-        ApiError::new_with_json(500, error.to_string())
+        ApiError::new_with_json(500, &error.to_string())
     }
 }
 
 impl From<serde_json::Error> for ApiError {
     fn from(error: serde_json::Error) -> Self {
-        ApiError::new_with_json(400, format!("JSON Serialization Error: {}", error))
+        ApiError::new_with_json(400, &format!("JSON Serialization Error: {}", error))
     }
 }
 
 impl From<&str> for ApiError {
     fn from(error: &str) -> Self {
-        ApiError::new_with_json(400, error.to_string())
+        ApiError::new_with_json(400, error)
     }
 }
 
@@ -75,7 +75,7 @@ impl From<HttpParseError> for ApiError {
     fn from(error: HttpParseError) -> Self {
         ApiError::new_with_json(
             400,
-            format!("Error parsing HTTP request: {}", error.message),
+            &format!("Error parsing HTTP request: {}", error.message),
         )
     }
 }

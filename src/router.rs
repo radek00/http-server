@@ -127,7 +127,7 @@ impl Router {
             let mut response = HttpResponse::new(None, None, 204);
             if let Some(cors) = &self.cors {
                 for (key, value) in &cors.headers {
-                    response = response.add_response_header(key.to_string(), value.to_string());
+                    response = response.add_response_header(key, value);
                 }
             }
             Ok(response)
@@ -138,10 +138,7 @@ impl Router {
                 match pattern_match {
                     Some(pattern_match) => {
                         if route.method.as_str() != method {
-                            return Err(ApiError::new_with_json(
-                                405,
-                                "Method Not Allowed".to_string(),
-                            ));
+                            return Err(ApiError::new_with_json(405, "Method Not Allowed"));
                         }
                         if route.authorize {
                             if let Some(credentials) = &self.credentials {
@@ -157,15 +154,12 @@ impl Router {
                                         None,
                                         401,
                                     )
-                                    .add_response_header(
-                                        "WWW-Authenticate".to_string(),
-                                        "Basic".to_string(),
-                                    ));
+                                    .add_response_header("WWW-Authenticate", "Basic"));
                                 }
                             } else {
                                 return Err(ApiError::new_with_json(
                                     500,
-                                    "Missing credentials configuration".to_string(),
+                                    "Missing credentials configuration",
                                 ));
                             }
                         }
@@ -193,8 +187,7 @@ impl Router {
 
                         if let Some(cors) = &self.cors {
                             for (key, value) in &cors.headers {
-                                response = response
-                                    .add_response_header(key.to_string(), value.to_string());
+                                response = response.add_response_header(key, value);
                             }
                         }
 
@@ -320,7 +313,7 @@ fn challenge_basic_auth(
         None,
         401,
     )
-    .add_response_header("WWW-Authenticate".to_string(), "Basic".to_string());
+    .add_response_header("WWW-Authenticate", "Basic");
     if auth_parts.len() != 2 {
         let err = ApiError::new_with_custom(challenge_response);
         return Err(err);
@@ -330,7 +323,7 @@ fn challenge_basic_auth(
     if auth_type != "Basic" {
         return Err(ApiError::new_with_json(
             401,
-            "Unauthorized - unsupported auth challenge".to_string(),
+            "Unauthorized - unsupported auth challenge",
         ));
     }
     let decoded = BASE64_STANDARD.decode(auth_value).unwrap();

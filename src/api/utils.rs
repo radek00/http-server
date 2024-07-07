@@ -66,7 +66,7 @@ pub fn list_directory(path: &str) -> Result<serde_json::Value, ApiError> {
     if !cannonical_target_path.starts_with(current_dir) {
         return Err(ApiError::new_with_json(
             400,
-            "Only paths relative to the current directory are allowed".to_string(),
+            "Only paths relative to the current directory are allowed",
         ));
     }
 
@@ -98,7 +98,7 @@ pub fn list_directory(path: &str) -> Result<serde_json::Value, ApiError> {
             path: path
                 .path()
                 .strip_prefix(&base_root_path)
-                .map_err(|err| ApiError::new_with_json(500, err.to_string()))?
+                .map_err(|err| ApiError::new_with_json(500, &err.to_string()))?
                 .to_string_lossy()
                 .into_owned(),
             file_type: if path.path().is_dir() {

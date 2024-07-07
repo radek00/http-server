@@ -118,10 +118,7 @@ pub fn create_routes(authorize: bool) -> Box<dyn Fn(&mut Router) + Send + Sync> 
                     ),
                     200,
                 )
-                .add_response_header(
-                    "Cache-Control".to_string(),
-                    "public, max-age=31536000".to_string(),
-                ))
+                .add_response_header("Cache-Control", "public, max-age=31536000"))
             },
             authorize,
         );
