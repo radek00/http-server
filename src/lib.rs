@@ -11,7 +11,7 @@ use std::net::{IpAddr, SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::Arc;
 use termcolor::Color;
-use utils::has_option;
+use utils::get_option;
 
 mod errors;
 mod http_response;
@@ -204,11 +204,11 @@ Auth: {}
 ====================
 Logs:"#,
                 vec![
-                    (self.port.to_string(), Some(Color::Yellow)),
-                    (self.threads.to_string(), Some(Color::Yellow)),
-                    (has_option(&self.cert_path), Some(Color::Yellow)),
-                    (has_option(&self.router.cors), Some(Color::Yellow)),
-                    (has_option(&self.router.credentials), Some(Color::Yellow)),
+                    (self.port.to_string(), Some(Color::Blue)),
+                    (self.threads.to_string(), Some(Color::Blue)),
+                    get_option(&self.cert_path),
+                    get_option(&self.router.cors),
+                    get_option(&self.router.credentials),
                 ],
             )
             .unwrap();
