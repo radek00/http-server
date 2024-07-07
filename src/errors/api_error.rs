@@ -10,7 +10,7 @@ pub struct ApiError {
 }
 
 impl ApiError {
-    pub fn new_with_html(code: u16, message: String) -> Self {
+    pub fn new_with_html(code: u16, message: &str) -> Self {
         ApiError {
             error_response: format_error(code, message),
             method: None,
@@ -49,7 +49,7 @@ impl std::error::Error for ApiError {}
 
 impl From<std::io::Error> for ApiError {
     fn from(error: std::io::Error) -> Self {
-        ApiError::new_with_html(404, format!("IO Error: {}", error))
+        ApiError::new_with_html(404, &format!("IO Error: {}", error))
     }
 }
 
@@ -80,7 +80,7 @@ impl From<HttpParseError> for ApiError {
     }
 }
 
-fn format_error(error_code: u16, message: String) -> HttpResponse {
+fn format_error(error_code: u16, message: &str) -> HttpResponse {
     let html = format!(
         "<!DOCTYPE html>
     <html lang=\"en\">

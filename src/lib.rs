@@ -281,7 +281,7 @@ fn handle_connection(
                 let response =
                     handle_multipart_file_upload(content_type, &headers, &mut reader, path)
                         .map_err(|err| {
-                            ApiError::new_with_html(400, format!("File upload error: {}", err))
+                            ApiError::new_with_html(400, &format!("File upload error: {}", err))
                         })?;
                 return Ok(response);
             } else {

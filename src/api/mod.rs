@@ -107,7 +107,7 @@ pub fn create_routes(authorize: bool) -> Box<dyn Fn(&mut Router) + Send + Sync> 
                     Some(Body::StaticFile(
                         STATIC_FILES
                             .get_file(file_name)
-                            .ok_or(ApiError::new_with_html(404, "File not found".to_string()))?
+                            .ok_or(ApiError::new_with_html(404, "File not found"))?
                             .contents(),
                         file_name.to_string(),
                     )),
@@ -168,7 +168,7 @@ pub fn create_routes(authorize: bool) -> Box<dyn Fn(&mut Router) + Send + Sync> 
             |_, _| {
                 let index = STATIC_FILES
                     .get_file("index.html")
-                    .ok_or(ApiError::new_with_html(404, "File not found".to_string()))?
+                    .ok_or(ApiError::new_with_html(404, "File not found"))?
                     .contents();
                 Ok(HttpResponse::new(
                     Some(Body::StaticFile(index, "index.html".to_string())),
