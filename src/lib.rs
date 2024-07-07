@@ -304,7 +304,7 @@ fn handle_connection(
 }
 
 fn parse_body<'a>(
-    headers: &'a HashMap<&'a str, &'a str>,
+    headers: &HashMap<&str, &str>,
     reader: BufReader<&mut Box<dyn ReadWrite>>,
     buffer: &'a mut Vec<u8>,
 ) -> Result<Option<Cow<'a, str>>, Box<dyn std::error::Error>> {
