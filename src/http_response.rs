@@ -83,8 +83,8 @@ impl HttpResponse {
 
         Ok(())
     }
-    pub fn add_response_header(mut self, key: String, value: String) -> Self {
-        self.headers.push((key, value));
+    pub fn add_response_header(mut self, key: &str, value: &str) -> Self {
+        self.headers.push((key.to_string(), value.to_string()));
         self
     }
 }
