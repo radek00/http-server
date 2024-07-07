@@ -315,16 +315,15 @@ fn challenge_basic_auth(
     expected_username: &str,
 ) -> Result<(), ApiError> {
     let auth_parts: Vec<&str> = auth_header.split_whitespace().collect();
+    let challenge_response = HttpResponse::new(
+        Some(Body::Json(json!({"message": "Unauthorized"}))),
+        None,
+        401,
+    )
+    .add_response_header("WWW-Authenticate".to_string(), "Basic".to_string());
     if auth_parts.len() != 2 {
         //return unauthorized with challenge
-        let err = ApiError::new_with_custom(
-            HttpResponse::new(
-                Some(Body::Json(json!({"message": "Unauthorized"}))),
-                None,
-                401,
-            )
-            .add_response_header("WWW-Authenticate".to_string(), "Basic".to_string()),
-        );
+        let err = ApiError::new_with_custom(challenge_response);
         return Err(err);
     }
     let auth_type = auth_parts[0];
@@ -341,14 +340,14 @@ fn challenge_basic_auth(
     let auth_parts: Vec<&str> = decoded_str.split(':').collect();
     if auth_parts.len() != 2 {
         //return unauthorized with challenge
-        return Err(ApiError::new_with_json(401, "Unauthorized".to_string()));
+        return Err(ApiError::new_with_custom(challenge_response));
     }
     let username = auth_parts[0];
     let password = auth_parts[1];
 
     if (username != expected_username) || (password != expectedd_passwd) {
         //return unauthorized with challenge
-        return Err(ApiError::new_with_json(401, "Unauthorized".to_string()));
+        return Err(ApiError::new_with_custom(challenge_response));
     }
     Ok(())
 }
