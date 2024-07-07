@@ -322,14 +322,12 @@ fn challenge_basic_auth(
     )
     .add_response_header("WWW-Authenticate".to_string(), "Basic".to_string());
     if auth_parts.len() != 2 {
-        //return unauthorized with challenge
         let err = ApiError::new_with_custom(challenge_response);
         return Err(err);
     }
     let auth_type = auth_parts[0];
     let auth_value = auth_parts[1];
     if auth_type != "Basic" {
-        //return unauthorized with challenge
         return Err(ApiError::new_with_json(
             401,
             "Unauthorized - unsupported auth challenge".to_string(),
@@ -339,14 +337,12 @@ fn challenge_basic_auth(
     let decoded_str = String::from_utf8(decoded).unwrap();
     let auth_parts: Vec<&str> = decoded_str.split(':').collect();
     if auth_parts.len() != 2 {
-        //return unauthorized with challenge
         return Err(ApiError::new_with_custom(challenge_response));
     }
     let username = auth_parts[0];
     let password = auth_parts[1];
 
     if (username != expected_username) || (password != expectedd_passwd) {
-        //return unauthorized with challenge
         return Err(ApiError::new_with_custom(challenge_response));
     }
     Ok(())

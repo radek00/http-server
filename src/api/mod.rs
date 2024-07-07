@@ -166,19 +166,6 @@ pub fn create_routes(authorize: bool) -> Box<dyn Fn(&mut Router) + Send + Sync> 
         );
 
         router.add_route(
-            "/api/auth",
-            HttpMethod::POST,
-            |_, _| {
-                Ok(HttpResponse::new(
-                    Some(Body::Text("Congrats".to_string())),
-                    Some("plain/text".to_string()),
-                    200,
-                ))
-            },
-            authorize,
-        );
-
-        router.add_route(
             "/*",
             HttpMethod::GET,
             |_, _| {
