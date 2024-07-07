@@ -3,8 +3,10 @@ use api::build_server;
 mod api;
 
 fn main() {
-    build_server()
-        .add_routes(api::create_routes())
+    let server = build_server();
+    server
+        .0
+        .add_routes(api::create_routes(server.1))
         .run()
         .expect("Starting server failed");
 }
