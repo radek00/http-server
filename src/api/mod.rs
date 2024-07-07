@@ -7,7 +7,7 @@ use self::utils::list_directory;
 
 mod utils;
 
-pub fn build_server() -> HttpServer {
+pub fn build_server() -> (HttpServer, bool) {
     let username_password_validator = |s: &str| {
         if s.contains(':') && s.split(':').count() == 2 {
             Ok(s.to_owned())
@@ -15,6 +15,7 @@ pub fn build_server() -> HttpServer {
             Err(String::from("The format must be username:password"))
         }
     };
+    let mut auth = false;
     let mut args = clap::Command::new("Simple HTTP Server")
             .version("1.0")
             .author("radek00")
@@ -73,6 +74,7 @@ pub fn build_server() -> HttpServer {
     if let Some(credentials) = args.remove_one::<String>("auth") {
         let credentials = credentials.split(':').collect::<Vec<&str>>();
         server = server.with_credentials(credentials[0], credentials[1]);
+        auth = true;
     }
 
     if !args.get_flag("silent") {
@@ -88,11 +90,11 @@ pub fn build_server() -> HttpServer {
                 .with_credentials("true"),
         );
     }
-    server
+    (server, auth)
 }
 
-pub fn create_routes() -> Box<dyn Fn(&mut Router) + Send + Sync> {
-    let closure = |router: &mut Router| {
+pub fn create_routes(authorize: bool) -> Box<dyn Fn(&mut Router) + Send + Sync> {
+    let closure = move |router: &mut Router| {
         router.add_route(
             "/static/{file}?",
             HttpMethod::GET,
@@ -121,7 +123,7 @@ pub fn create_routes() -> Box<dyn Fn(&mut Router) + Send + Sync> {
                     "public, max-age=31536000".to_string(),
                 ))
             },
-            true,
+            authorize,
         );
         router.add_route(
             "/api/files",
@@ -145,7 +147,7 @@ pub fn create_routes() -> Box<dyn Fn(&mut Router) + Send + Sync> {
                     200,
                 ))
             },
-            true,
+            authorize,
         );
 
         router.add_route(
@@ -160,7 +162,7 @@ pub fn create_routes() -> Box<dyn Fn(&mut Router) + Send + Sync> {
                     200,
                 ))
             },
-            true,
+            authorize,
         );
 
         router.add_route(
@@ -173,7 +175,7 @@ pub fn create_routes() -> Box<dyn Fn(&mut Router) + Send + Sync> {
                     200,
                 ))
             },
-            true,
+            authorize,
         );
 
         router.add_route(
@@ -190,7 +192,7 @@ pub fn create_routes() -> Box<dyn Fn(&mut Router) + Send + Sync> {
                     200,
                 ))
             },
-            true,
+            authorize,
         );
     };
 
