@@ -11,12 +11,14 @@ use std::net::{IpAddr, SocketAddr, TcpListener, TcpStream};
 use std::path::PathBuf;
 use std::sync::Arc;
 use termcolor::Color;
+use utils::has_option;
 
 mod errors;
 mod http_response;
 mod logger;
 mod router;
 mod thread_pool;
+mod utils;
 
 pub use errors::*;
 pub use http_response::*;
@@ -177,16 +179,6 @@ impl HttpServer {
     }
     fn print_server_info(&self) {
         if let Some(logger) = &self.logger {
-            let https = match self.cert_path {
-                Some(_) => String::from("Enabled"),
-                None => String::from("Disabled"),
-            };
-            let cors = if self.router.hsa_cors() {
-                String::from("Enabled")
-            } else {
-                String::from("Disabled")
-            };
-
             logger.log_stdout(
                 r#"
 
@@ -207,14 +199,16 @@ Port: {}
 Threads: {}
 HTTPS: {}
 CORS: {}
+Auth: {}
 
 ====================
 Logs:"#,
                 vec![
                     (self.port.to_string(), Some(Color::Yellow)),
                     (self.threads.to_string(), Some(Color::Yellow)),
-                    (https, Some(Color::Yellow)),
-                    (cors, Some(Color::Yellow)),
+                    (has_option(&self.cert_path), Some(Color::Yellow)),
+                    (has_option(&self.router.cors), Some(Color::Yellow)),
+                    (has_option(&self.router.credentials), Some(Color::Yellow)),
                 ],
             )
             .unwrap();

@@ -19,7 +19,7 @@ pub enum HttpMethod {
     CONNECT,
 }
 
-struct Credentials {
+pub struct Credentials {
     username: String,
     password: String,
 }
@@ -62,8 +62,8 @@ pub struct Route {
 pub struct Router {
     routes: Vec<Route>,
     logger: Option<Arc<Logger>>,
-    cors: Option<Cors>,
-    credentials: Option<Credentials>,
+    pub(super) cors: Option<Cors>,
+    pub(super) credentials: Option<Credentials>,
 }
 
 impl Router {
@@ -83,10 +83,6 @@ impl Router {
     pub fn with_cors(mut self, cors: Cors) -> Self {
         self.cors = Some(cors);
         self
-    }
-
-    pub fn hsa_cors(&self) -> bool {
-        self.cors.is_some()
     }
 
     pub fn with_credentials(mut self, password: &str, username: &str) -> Self {
