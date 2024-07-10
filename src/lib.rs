@@ -203,6 +203,7 @@ Threads: {}
 HTTPS: {}
 CORS: {}
 Auth: {}
+Compression: {}
 
 ====================
 Logs:"#,
@@ -212,6 +213,7 @@ Logs:"#,
                     get_option(&self.cert_path),
                     get_option(&self.router.cors),
                     get_option(&self.router.credentials),
+                    get_option(&Some(self.compression))
                 ],
             )
             .unwrap();

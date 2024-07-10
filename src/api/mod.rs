@@ -61,6 +61,11 @@ pub fn build_server() -> (HttpServer, bool) {
                 .short('a')
                 .value_parser(username_password_validator)
                 .help("Enable HTTP Basic Auth. Pass username:password as argument"))
+            .arg(clap::Arg::new("compression")
+                .long("compression")
+                .default_value("true")
+                .action(clap::ArgAction::SetTrue)
+                .help("Enable gzip response compression"))
             .get_matches();
 
     let mut server = HttpServer::build(
@@ -69,7 +74,7 @@ pub fn build_server() -> (HttpServer, bool) {
         args.remove_one::<PathBuf>("cert"),
         args.remove_one::<String>("certpass"),
         args.remove_one::<std::net::IpAddr>("ip").unwrap(),
-        true,
+        args.remove_one::<bool>("compression").unwrap(),
     );
 
     if let Some(credentials) = args.remove_one::<String>("auth") {
