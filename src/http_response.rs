@@ -35,7 +35,8 @@ impl HttpResponse {
     }
     pub fn write_response(
         self,
-        mut stream: &mut Box<dyn ReadWrite>,
+        stream: &mut Box<dyn ReadWrite>,
+        compress: bool,
     ) -> Result<(), Box<dyn std::error::Error>> {
         let mut base_headers = format!(
             "HTTP/1.1 {}\r\n\
@@ -46,32 +47,20 @@ impl HttpResponse {
             self.status_code, self.content_type
         );
 
-            //check if compression is enabled
-    //check if accept-encoding header is present
-    //if gzip is supported, compress the response
-    //if not, return the response as is
-    //set the content-encoding header to gzip
-    //set Vary header to Accept-Encoding
-
         self.headers.iter().for_each(|(key, value)| {
             base_headers.push_str(&format!("{}: {}\r\n", key, value));
         });
 
         if let Some(body) = self.body {
-            if true {
-                //if compression is enabled
+            if compress {
                 base_headers.push_str("Content-Encoding: gzip\r\n");
                 base_headers.push_str("Vary: Accept-Encoding\r\n");
-    
+
                 let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
 
                 match body {
-                    Body::Text(text) => {
-                        encoder.write_all(text.as_bytes())?
-                    },
-                    Body::Json(json) => {
-                        encoder.write_all(json.to_string().as_bytes())?
-                    },
+                    Body::Text(text) => encoder.write_all(text.as_bytes())?,
+                    Body::Json(json) => encoder.write_all(json.to_string().as_bytes())?,
                     Body::StaticFile(file, _) => {
                         encoder.write_all(file)?;
                         let encoded = encoder.finish()?;
@@ -82,15 +71,7 @@ impl HttpResponse {
                         return Ok(());
                     }
                     Body::FileStream(file, name) => {
-                        base_headers.push_str(&format!(
-                            "Content-Disposition: attachment; filename=\"{}\"\r\n\
-                        \rn",
-                            name
-                        ));
-                        stream.write_all(base_headers.as_bytes())?;
-                        let mut reader = BufReader::new(file);
-                        io::copy(&mut reader, &mut stream)?;
-                        return Ok(());
+                        return handle_file_stream(file, name, base_headers, stream);
                     }
                 }
 
@@ -115,15 +96,7 @@ impl HttpResponse {
                         return Ok(());
                     }
                     Body::FileStream(file, name) => {
-                        base_headers.push_str(&format!(
-                            "Content-Disposition: attachment; filename=\"{}\"\r\n\
-                        \rn",
-                            name
-                        ));
-                        stream.write_all(base_headers.as_bytes())?;
-                        let mut reader = BufReader::new(file);
-                        io::copy(&mut reader, &mut stream)?;
-                        return Ok(());
+                        return handle_file_stream(file, name, base_headers, stream);
                     }
                 };
                 base_headers.push_str(&format!(
@@ -135,8 +108,7 @@ impl HttpResponse {
                 ));
                 stream.write_all(base_headers.as_bytes())?;
             }
-    
-            }
+        }
 
         Ok(())
     }
@@ -144,4 +116,21 @@ impl HttpResponse {
         self.headers.push((key.to_string(), value.to_string()));
         self
     }
+}
+
+fn handle_file_stream(
+    file: File,
+    name: String,
+    mut headers: String,
+    mut stream: &mut Box<dyn ReadWrite>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    headers.push_str(&format!(
+        "Content-Disposition: attachment; filename=\"{}\"\r\n\
+    \rn",
+        name
+    ));
+    stream.write_all(headers.as_bytes())?;
+    let mut reader = BufReader::new(file);
+    io::copy(&mut reader, &mut stream)?;
+    Ok(())
 }

@@ -85,6 +85,7 @@ pub struct HttpServer {
     router: Router,
     logger: Option<Arc<Logger>>,
     bind_address: IpAddr,
+    compression: bool,
 }
 
 impl HttpServer {
@@ -94,6 +95,7 @@ impl HttpServer {
         cert_path: Option<PathBuf>,
         cert_pass: Option<String>,
         bind_address: IpAddr,
+        compression: bool,
     ) -> HttpServer {
         HttpServer {
             port,
@@ -103,6 +105,7 @@ impl HttpServer {
             router: Router::new(),
             logger: None,
             bind_address,
+            compression,
         }
     }
     pub fn with_logger(mut self) -> Self {
@@ -165,7 +168,7 @@ impl HttpServer {
 
                         err.error_response
                     })
-                    .write_response(&mut stream)
+                    .write_response(&mut stream, self.compression)
                     .unwrap_or_else(|err| {
                         if let Some(logger) = logger_clone {
                             logger
