@@ -69,6 +69,7 @@ pub fn build_server() -> (HttpServer, bool) {
         args.remove_one::<PathBuf>("cert"),
         args.remove_one::<String>("certpass"),
         args.remove_one::<std::net::IpAddr>("ip").unwrap(),
+        true,
     );
 
     if let Some(credentials) = args.remove_one::<String>("auth") {
