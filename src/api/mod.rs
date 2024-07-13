@@ -1,3 +1,7 @@
+use clap::builder::{
+    styling::{AnsiColor, Effects},
+    Styles,
+};
 use scratch_server::{
     api_error::ApiError, Body, Cors, HttpMethod, HttpResponse, HttpServer, Router, STATIC_FILES,
 };
@@ -16,9 +20,13 @@ pub fn build_server() -> (HttpServer, bool) {
         }
     };
     let mut auth = false;
-    let mut args = clap::Command::new("Simple HTTP Server")
-            .version("1.0")
+    let mut args = clap::Command::new(env!("CARGO_PKG_NAME"))
+            .version(env!("CARGO_PKG_VERSION"))
             .author("radek00")
+            .styles(    Styles::styled()
+            .header(AnsiColor::BrightGreen.on_default() | Effects::BOLD)
+            .usage(AnsiColor::Yellow.on_default() | Effects::BOLD)
+            .placeholder(AnsiColor::Yellow.on_default()))
             .about("Simlpe HTTP Server with TLS/SSL support. Implemented api endpoints allow for navigating file system directories, uploading and downloading files.")
             .arg(clap::Arg::new("port")
                 .short('p')
@@ -41,6 +49,7 @@ pub fn build_server() -> (HttpServer, bool) {
             .arg(clap::Arg::new("certpass")
                 .long("certpass")
                 .default_value("")
+                .hide_default_value(true)
                 .help("TLS/SSL certificate password"))
             .arg(clap::Arg::new("silent")
                 .action(clap::ArgAction::SetTrue)
@@ -55,7 +64,7 @@ pub fn build_server() -> (HttpServer, bool) {
                 .long("ip")
                 .default_value("0.0.0.0")
                 .value_parser(clap::value_parser!(std::net::IpAddr))
-                .help("Ip address to bind to [default: 0.0.0.0]"))
+                .help("Ip address to bind to"))
             .arg(clap::Arg::new("auth")
                 .long("auth")
                 .short('a')
