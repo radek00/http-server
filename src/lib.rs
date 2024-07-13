@@ -213,7 +213,7 @@ Logs:"#,
                     get_option(&self.cert_path),
                     get_option(&self.router.cors),
                     get_option(&self.router.credentials),
-                    get_option(&Some(self.compression))
+                    if self.compression { ("Enabled".to_string(), Some(Color::Green)) } else { ("Disabled".to_string(), Some(Color::Yellow)) },
                 ],
             )
             .unwrap();

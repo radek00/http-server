@@ -72,7 +72,6 @@ pub fn build_server() -> (HttpServer, bool) {
                 .help("Enable HTTP Basic Auth. Pass username:password as argument"))
             .arg(clap::Arg::new("compression")
                 .long("compression")
-                .default_value("true")
                 .action(clap::ArgAction::SetTrue)
                 .help("Enable gzip response compression"))
             .get_matches();
