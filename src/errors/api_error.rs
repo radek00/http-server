@@ -49,7 +49,7 @@ impl std::error::Error for ApiError {}
 
 impl From<std::io::Error> for ApiError {
     fn from(error: std::io::Error) -> Self {
-        ApiError::new_with_html(404, &format!("IO Error: {}", error))
+        ApiError::new_with_html(500, &format!("IO Error: {}", error))
     }
 }
 
