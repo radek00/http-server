@@ -126,7 +126,6 @@ pub fn create_routes(
     if let Some(path) = index_path {
         let path_arc = Arc::new(path);
         let closure = {
-            let path_arc = Arc::clone(&path_arc);
             move |router: &mut Router| {
                 let path_arc = Arc::clone(&path_arc);
                 router.add_route(
