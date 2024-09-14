@@ -116,3 +116,12 @@ pub fn list_directory(path: &str) -> Result<serde_json::Value, ApiError> {
 
     Ok(v)
 }
+
+pub fn parse_index_path(path: &str) -> Result<PathBuf, String> {
+    let index_path = PathBuf::from(path);
+    if index_path.exists() {
+        Ok(index_path)
+    } else {
+        Err("Index file not found".to_string())
+    }
+}
