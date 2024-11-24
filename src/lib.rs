@@ -20,6 +20,9 @@ mod router;
 mod thread_pool;
 mod utils;
 
+#[cfg(feature = "websockets")]
+mod websockets;
+
 pub use errors::*;
 pub use http_response::*;
 pub use router::*;
