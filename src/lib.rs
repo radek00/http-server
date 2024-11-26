@@ -156,29 +156,44 @@ impl HttpServer {
             let logger_clone = self.logger.clone();
 
             pool.execute(move || {
-                handle_connection(&mut stream, &router_clone, peer_addr.ip())
-                    .unwrap_or_else(|err| {
-                        if let (Some(method), Some(path)) = (&err.method, &err.path) {
-                            router_clone
-                                .log_response(
-                                    err.error_response.status_code,
-                                    path,
-                                    method,
-                                    peer_addr.ip(),
-                                )
-                                .unwrap();
-                        }
+                let mut reader = BufReader::new(&mut *stream);
 
-                        err.error_response
-                    })
-                    .write_response(&mut stream, self.compression)
-                    .unwrap_or_else(|err| {
-                        if let Some(logger) = logger_clone {
-                            logger
-                                .log_stderr("Error: {}", vec![(err.to_string(), Some(Color::Red))])
-                                .unwrap();
-                        }
-                    });
+                let mut request = String::new();
+                let (method, path, headers) = match parse_http(&mut reader, &mut request) {
+                    Ok(result) => result,
+                    Err(err) => {
+                        let api_error: ApiError = err.into();
+                        api_error
+                            .error_response
+                            .write_response(&mut stream, false)
+                            .unwrap_or_else(|err| log_error(err.to_string(), &logger_clone));
+                        return;
+                    }
+                };
+                handle_http(
+                    &router_clone,
+                    peer_addr.ip(),
+                    &mut reader,
+                    method,
+                    path,
+                    &headers,
+                )
+                .unwrap_or_else(|err| {
+                    if let (Some(method), Some(path)) = (&err.method, &err.path) {
+                        router_clone
+                            .log_response(
+                                err.error_response.status_code,
+                                path,
+                                method,
+                                peer_addr.ip(),
+                            )
+                            .unwrap();
+                    }
+
+                    err.error_response
+                })
+                .write_response(&mut stream, self.compression)
+                .unwrap_or_else(|err| log_error(err.to_string(), &logger_clone));
             })?;
         }
         Ok(())
@@ -225,7 +240,7 @@ Logs:"#,
 }
 
 fn parse_http<'a>(
-    reader: &mut BufReader<&mut Box<dyn ReadWrite>>,
+    reader: &mut BufReader<&mut dyn ReadWrite>,
     request_string: &'a mut String,
 ) -> Result<(&'a str, &'a str, HashMap<&'a str, &'a str>), HttpParseError> {
     loop {
@@ -269,28 +284,39 @@ fn parse_http<'a>(
     Ok((method, path, headers))
 }
 
-fn handle_connection(
-    stream: &mut Box<dyn ReadWrite>,
+// fn handle_websocket(
+//     stream: &mut Box<dyn ReadWrite>,
+//     headers: &HashMap<&str, &str>,
+// ) -> Result<(), ()> {
+//     WebSocket::new(stream).connect(headers)
+// }
+
+fn handle_http(
     router: &Arc<Router>,
     peer_addr: IpAddr,
+    reader: &mut BufReader<&mut dyn ReadWrite>,
+    method: &str,
+    path: &str,
+    headers: &HashMap<&str, &str>,
 ) -> Result<HttpResponse, ApiError> {
-    let mut reader = BufReader::new(&mut *stream);
-
-    let mut request = String::new();
-    let (method, path, headers) = parse_http(&mut reader, &mut request)?;
-
     let mut buffer = Vec::new();
     let body;
+
+    //#[cfg((feature = "websockets"))]
+
+    // if method == HttpMethod::GET.as_str() {
+    //     WebSocket::new(stream).connect(&headers).unwrap();
+    //     //return;
+    // }
 
     match headers.get("Content-Type") {
         Some(content_type) => {
             if content_type.contains("multipart/form-data") {
                 let path = headers.get("Path").unwrap();
-                let response =
-                    handle_multipart_file_upload(content_type, &headers, &mut reader, path)
-                        .map_err(|err| {
-                            ApiError::new_with_html(400, &format!("File upload error: {}", err))
-                        })?;
+                let response = handle_multipart_file_upload(content_type, &headers, reader, path)
+                    .map_err(|err| {
+                    ApiError::new_with_html(400, &format!("File upload error: {}", err))
+                })?;
                 return Ok(response);
             } else {
                 body = parse_body(&headers, reader, &mut buffer)?;
@@ -305,9 +331,9 @@ fn handle_connection(
     Ok(response)
 }
 
-fn parse_body<'a>(
+fn parse_body<'a, 'b>(
     headers: &HashMap<&str, &str>,
-    reader: BufReader<&mut Box<dyn ReadWrite>>,
+    reader: &mut BufReader<&'b mut dyn ReadWrite>,
     buffer: &'a mut Vec<u8>,
 ) -> Result<Option<Cow<'a, str>>, Box<dyn std::error::Error>> {
     match headers.get("Content-Length") {
@@ -322,10 +348,10 @@ fn parse_body<'a>(
     }
 }
 
-fn handle_multipart_file_upload(
+fn handle_multipart_file_upload<'a>(
     content_type: &str,
     headers: &HashMap<&str, &str>,
-    reader: &mut BufReader<&mut Box<dyn ReadWrite>>,
+    reader: &mut BufReader<&'a mut dyn ReadWrite>,
     path: &str,
 ) -> Result<HttpResponse, Box<dyn std::error::Error>> {
     let idx = content_type
@@ -393,4 +419,12 @@ fn handle_multipart_file_upload(
         200,
     );
     Ok(response)
+}
+
+fn log_error(msg: String, logger: &Option<Arc<Logger>>) {
+    if let Some(logger) = logger {
+        logger
+            .log_stderr("Error: {}", vec![(msg, Some(Color::Red))])
+            .unwrap();
+    }
 }

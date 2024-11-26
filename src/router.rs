@@ -25,7 +25,7 @@ pub struct Credentials {
 }
 
 impl HttpMethod {
-    fn as_str(&self) -> &str {
+    pub fn as_str(&self) -> &str {
         match self {
             HttpMethod::GET => "GET",
             HttpMethod::POST => "POST",
