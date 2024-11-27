@@ -12,6 +12,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use termcolor::Color;
 use utils::get_option;
+use websockets::WebSocket;
 
 mod errors;
 mod http_response;
@@ -170,6 +171,13 @@ impl HttpServer {
                         return;
                     }
                 };
+                if headers.contains_key("Upgrade") {
+                    //#[cfg((feature = "websockets"))]
+                    handle_websocket(&mut reader, &headers).unwrap_or_else(|err| {
+                        log_error(err.to_string(), &logger_clone);
+                    });
+                    return;
+                }
                 handle_http(
                     &router_clone,
                     peer_addr.ip(),
@@ -284,12 +292,13 @@ fn parse_http<'a>(
     Ok((method, path, headers))
 }
 
-// fn handle_websocket(
-//     stream: &mut Box<dyn ReadWrite>,
-//     headers: &HashMap<&str, &str>,
-// ) -> Result<(), ()> {
-//     WebSocket::new(stream).connect(headers)
-// }
+fn handle_websocket<'socket>(
+    reader: &'socket mut BufReader<&'socket mut dyn ReadWrite>,
+    headers: &HashMap<&str, &str>,
+) -> Result<(), ApiError> {
+    WebSocket::new(reader).connect(headers).unwrap();
+    Ok(())
+}
 
 fn handle_http(
     router: &Arc<Router>,
