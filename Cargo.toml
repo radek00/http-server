@@ -38,3 +38,6 @@ termcolor = "1.4.1"
 
 [build-dependencies]
 regex = "1.10.3"
+
+[target.'cfg(feature = "websockets")'.dependencies]
+sha1 = "0.10.6"
