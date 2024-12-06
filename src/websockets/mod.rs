@@ -6,6 +6,14 @@ use sha1::{Digest, Sha1};
 use crate::{api_error::ApiError, ReadWrite};
 
 #[cfg(feature = "websockets")]
+#[derive(Debug)]
+pub enum Frame {
+    Text(Vec<u8>),
+    Binary(Vec<u8>),
+    Ping,
+    Pong,
+    Close,
+}
 
 pub struct WebSocket<'a> {
     reader: &'a mut BufReader<&'a mut dyn ReadWrite>,
@@ -21,9 +29,8 @@ impl<'a> WebSocket<'a> {
         if let Some(key) = headers.get("Sec-WebSocket-Key") {
             println!("WebSocket key: {}", key);
             self.perform_handshake(key)?;
-            loop {}
+            self.handle_connection()?;
         }
-        //must return upgrade response. Either do it here or only return a struct and write response in HttpResponse.
         Ok(())
     }
 
@@ -43,5 +50,127 @@ impl<'a> WebSocket<'a> {
         );
         self.reader.get_mut().write_all(response.as_bytes())?;
         Ok(())
+    }
+
+    fn send_ping(&mut self) -> Result<usize, ApiError> {
+        println!("Ping sent");
+        Ok(self.reader.get_mut().write(&[0x89, 0x00])?)
+    }
+
+    fn send_pong(&mut self) -> Result<usize, ApiError> {
+        println!("Pong sent");
+        Ok(self.reader.get_mut().write(&[0x8A, 0x00])?)
+    }
+
+    fn send_text(&mut self, data: Vec<u8>) -> Result<usize, ApiError> {
+        let text_data = String::from_utf8(data).unwrap();
+        println!("Text frame: {}", text_data);
+        let mut text_frame = Vec::new();
+        text_frame.push(0x81);
+
+        let length = text_data.len();
+
+        if length < 126 {
+            text_frame.push(length as u8);
+        } else if length < 65536 {
+            text_frame.push(126);
+            text_frame.extend_from_slice(&length.to_be_bytes());
+        } else {
+            text_frame.push(127);
+            text_frame.extend_from_slice(&length.to_be_bytes());
+        }
+
+        text_frame.extend_from_slice(text_data.as_bytes());
+        Ok(self.reader.get_mut().write(&text_frame)?)
+    }
+
+    fn handle_connection(&mut self) -> Result<(), ApiError> {
+        let mut buffer = [0; 2048];
+        let mut pong_received = false;
+        loop {
+            if pong_received {
+                self.send_ping()?;
+                pong_received = false;
+            }
+            let buffer_size = self.reader.get_mut().read(&mut buffer)?;
+            if buffer_size > 0 {
+                match self.parse_frame(&buffer) {
+                    Ok(frame) => match frame {
+                        Frame::Text(data) => {
+                            self.send_text(data)?;
+                        }
+                        Frame::Binary(data) => {
+                            println!("Binary frame: {:?}", data);
+                        }
+                        Frame::Ping => {
+                            self.send_pong()?;
+                        }
+                        Frame::Pong => {
+                            pong_received = true;
+                        }
+                        Frame::Close => {
+                            println!("Close frame received");
+                            break;
+                        }
+                    },
+                    Err(_) => todo!(),
+                }
+            }
+        }
+        Ok(())
+    }
+    fn parse_frame(&mut self, buffer: &[u8]) -> Result<Frame, ApiError> {
+        if buffer.len() < 2 {
+            println!("Frame too short");
+        }
+
+        let first_byte = buffer[0];
+
+        let opcode = first_byte & 0x0F; // Determines opcode
+
+        let second_byte = buffer[1];
+        let masked = (second_byte & 0x80) != 0;
+
+        let mut payload_len = (second_byte & 0x7F) as usize;
+
+        if masked == false {
+            println!("No mask found");
+        }
+
+        let mut offset = 2;
+
+        if payload_len == 126 {
+            if buffer.len() < 4 {
+                println!("Frame too short");
+            }
+
+            payload_len = u16::from_be_bytes([buffer[offset], buffer[offset + 1]]) as usize;
+            offset += 2;
+        } else if payload_len == 127 {
+            todo!();
+        }
+
+        if buffer.len() < offset + 4 + payload_len {
+            println!("Frame too short");
+        }
+
+        let mask = &buffer[offset..offset + 4];
+
+        offset += 4;
+
+        let mut data = Vec::with_capacity(payload_len);
+        for i in 0..payload_len {
+            data.push(buffer[offset + i] ^ mask[i % 4]);
+        }
+
+        // Return the opcode and data if given
+        Ok(match opcode {
+            0x01 => Frame::Text(data),
+            0x02 => Frame::Binary(data),
+            0x08 => Frame::Close,
+            0x09 => Frame::Ping,
+            0x0A => Frame::Pong,
+            _ => return Err(ApiError::new_with_json(456, "Unknown opcode")),
+        })
     }
 }
