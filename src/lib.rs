@@ -12,6 +12,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use termcolor::Color;
 use utils::get_option;
+
+#[cfg(feature = "websockets")]
 use websockets::WebSocket;
 
 mod errors;
@@ -171,6 +173,8 @@ impl HttpServer {
                         return;
                     }
                 };
+
+                #[cfg(feature = "websockets")]
                 if headers.contains_key("Upgrade") {
                     WebSocket::new(&mut reader)
                         .connect(&headers)
@@ -179,6 +183,7 @@ impl HttpServer {
                         });
                     return;
                 }
+
                 handle_http(
                     &router_clone,
                     peer_addr.ip(),
@@ -304,21 +309,14 @@ fn handle_http(
     let mut buffer = Vec::new();
     let body;
 
-    //#[cfg((feature = "websockets"))]
-
-    // if method == HttpMethod::GET.as_str() {
-    //     WebSocket::new(stream).connect(&headers).unwrap();
-    //     //return;
-    // }
-
     match headers.get("Content-Type") {
         Some(content_type) => {
             if content_type.contains("multipart/form-data") {
                 let path = headers.get("Path").unwrap();
                 let response = handle_multipart_file_upload(content_type, headers, reader, path)
                     .map_err(|err| {
-                    ApiError::new_with_html(400, &format!("File upload error: {}", err))
-                })?;
+                        ApiError::new_with_html(400, &format!("File upload error: {}", err))
+                    })?;
                 return Ok(response);
             } else {
                 body = parse_body(headers, reader, &mut buffer)?;
@@ -335,7 +333,7 @@ fn handle_http(
 
 fn parse_body<'a>(
     headers: &HashMap<&str, &str>,
-    reader: &mut BufReader<& mut dyn ReadWrite>,
+    reader: &mut BufReader<&mut dyn ReadWrite>,
     buffer: &'a mut Vec<u8>,
 ) -> Result<Option<Cow<'a, str>>, Box<dyn std::error::Error>> {
     match headers.get("Content-Length") {
@@ -350,10 +348,10 @@ fn parse_body<'a>(
     }
 }
 
-fn handle_multipart_file_upload<>(
+fn handle_multipart_file_upload(
     content_type: &str,
     headers: &HashMap<&str, &str>,
-    reader: &mut BufReader<& mut dyn ReadWrite>,
+    reader: &mut BufReader<&mut dyn ReadWrite>,
     path: &str,
 ) -> Result<HttpResponse, Box<dyn std::error::Error>> {
     let idx = content_type

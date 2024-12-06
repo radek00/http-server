@@ -1,6 +1,7 @@
 use std::fmt;
 use std::io;
 
+#[cfg(feature = "websockets")]
 #[derive(Debug)]
 pub enum WebSocketError {
     IoError(io::Error),
@@ -10,6 +11,7 @@ pub enum WebSocketError {
     FrameParseError(String),
 }
 
+#[cfg(feature = "websockets")]
 impl fmt::Display for WebSocketError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -22,14 +24,17 @@ impl fmt::Display for WebSocketError {
     }
 }
 
+#[cfg(feature = "websockets")]
 impl std::error::Error for WebSocketError {}
 
+#[cfg(feature = "websockets")]
 impl From<io::Error> for WebSocketError {
     fn from(err: io::Error) -> WebSocketError {
         WebSocketError::IoError(err)
     }
 }
 
+#[cfg(feature = "websockets")]
 impl From<std::string::FromUtf8Error> for WebSocketError {
     fn from(err: std::string::FromUtf8Error) -> WebSocketError {
         WebSocketError::TextParseError(err)

@@ -18,6 +18,7 @@ pub enum Frame {
     Close,
 }
 
+#[cfg(feature = "websockets")]
 pub struct WebSocket<'a> {
     reader: &'a mut BufReader<&'a mut dyn ReadWrite>,
 }

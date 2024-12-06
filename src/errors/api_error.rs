@@ -1,9 +1,9 @@
 use std::fmt;
 
-use crate::{
-    http_parse_error::HttpParseError, websockets::websocket_error::WebSocketError, Body,
-    HttpResponse,
-};
+use crate::{http_parse_error::HttpParseError, Body, HttpResponse};
+
+#[cfg(feature = "websockets")]
+use crate::WebSocketError;
 
 #[derive(Debug)]
 pub struct ApiError {
@@ -83,6 +83,7 @@ impl From<HttpParseError> for ApiError {
     }
 }
 
+#[cfg(feature = "websockets")]
 impl From<WebSocketError> for ApiError {
     fn from(error: WebSocketError) -> Self {
         ApiError::new_with_json(400, &error.to_string())
