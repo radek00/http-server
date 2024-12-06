@@ -172,10 +172,11 @@ impl HttpServer {
                     }
                 };
                 if headers.contains_key("Upgrade") {
-                    //#[cfg((feature = "websockets"))]
-                    handle_websocket(&mut reader, &headers).unwrap_or_else(|err| {
-                        log_error(err.to_string(), &logger_clone);
-                    });
+                    WebSocket::new(&mut reader)
+                        .connect(&headers)
+                        .unwrap_or_else(|err| {
+                            log_error(err.to_string(), &logger_clone);
+                        });
                     return;
                 }
                 handle_http(
@@ -292,14 +293,6 @@ fn parse_http<'a>(
     Ok((method, path, headers))
 }
 
-fn handle_websocket<'socket>(
-    reader: &'socket mut BufReader<&'socket mut dyn ReadWrite>,
-    headers: &HashMap<&str, &str>,
-) -> Result<(), ApiError> {
-    WebSocket::new(reader).connect(headers).unwrap();
-    Ok(())
-}
-
 fn handle_http(
     router: &Arc<Router>,
     peer_addr: IpAddr,
@@ -322,27 +315,27 @@ fn handle_http(
         Some(content_type) => {
             if content_type.contains("multipart/form-data") {
                 let path = headers.get("Path").unwrap();
-                let response = handle_multipart_file_upload(content_type, &headers, reader, path)
+                let response = handle_multipart_file_upload(content_type, headers, reader, path)
                     .map_err(|err| {
                     ApiError::new_with_html(400, &format!("File upload error: {}", err))
                 })?;
                 return Ok(response);
             } else {
-                body = parse_body(&headers, reader, &mut buffer)?;
+                body = parse_body(headers, reader, &mut buffer)?;
             }
         }
         None => {
-            body = parse_body(&headers, reader, &mut buffer)?;
+            body = parse_body(headers, reader, &mut buffer)?;
         }
     }
 
-    let response = router.route(path, method, body.as_deref(), peer_addr, &headers)?;
+    let response = router.route(path, method, body.as_deref(), peer_addr, headers)?;
     Ok(response)
 }
 
-fn parse_body<'a, 'b>(
+fn parse_body<'a>(
     headers: &HashMap<&str, &str>,
-    reader: &mut BufReader<&'b mut dyn ReadWrite>,
+    reader: &mut BufReader<& mut dyn ReadWrite>,
     buffer: &'a mut Vec<u8>,
 ) -> Result<Option<Cow<'a, str>>, Box<dyn std::error::Error>> {
     match headers.get("Content-Length") {
@@ -357,10 +350,10 @@ fn parse_body<'a, 'b>(
     }
 }
 
-fn handle_multipart_file_upload<'a>(
+fn handle_multipart_file_upload<>(
     content_type: &str,
     headers: &HashMap<&str, &str>,
-    reader: &mut BufReader<&'a mut dyn ReadWrite>,
+    reader: &mut BufReader<& mut dyn ReadWrite>,
     path: &str,
 ) -> Result<HttpResponse, Box<dyn std::error::Error>> {
     let idx = content_type
