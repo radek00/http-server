@@ -10,12 +10,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let dist_dir = Path::new("src/dist");
 
+        let re = Regex::new(r#"src="([^"]*?)(-\d+\.\d+\.\d+)?\.js""#)?;
         for entry in fs::read_dir(dist_dir)? {
             let entry = entry?;
             let path = entry.path();
             if path.file_name().unwrap() == OsStr::new("index.html") {
                 let html_content = fs::read_to_string(&path)?;
-                let re = Regex::new(r#"src="([^"]*?)(-\d+\.\d+\.\d+)?\.js""#)?;
                 let modified_html = re.replace_all(&html_content, |caps: &regex::Captures| {
                     format!("src=\"{}-{}.js\"", &caps[1], version)
                 });
