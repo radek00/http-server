@@ -1,25 +1,43 @@
 use std::fmt;
+use std::ops::{Deref, DerefMut};
 
 use crate::{http_parse_error::HttpParseError, Body, HttpResponse};
 
 #[derive(Debug)]
-pub struct ApiError {
+pub struct ApiError(Box<ApiErrorImpl>);
+
+#[derive(Debug)]
+pub struct ApiErrorImpl {
     pub error_response: HttpResponse,
     pub method: Option<String>,
     pub path: Option<String>,
 }
 
+impl Deref for ApiError {
+    type Target = ApiErrorImpl;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl DerefMut for ApiError {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
 impl ApiError {
     pub fn new_with_html(code: u16, message: &str) -> Self {
-        ApiError {
+        ApiError(Box::new(ApiErrorImpl {
             error_response: format_error(code, message),
             method: None,
             path: None,
-        }
+        }))
     }
 
     pub fn new_with_json(code: u16, message: &str) -> Self {
-        ApiError {
+        ApiError(Box::new(ApiErrorImpl {
             error_response: HttpResponse::new(
                 Some(Body::Json(serde_json::json!({"message": message}))),
                 None,
@@ -27,15 +45,19 @@ impl ApiError {
             ),
             method: None,
             path: None,
-        }
+        }))
     }
 
     pub fn new_with_custom(response: HttpResponse) -> Self {
-        ApiError {
+        ApiError(Box::new(ApiErrorImpl {
             error_response: response,
             method: None,
             path: None,
-        }
+        }))
+    }
+
+    pub fn into_response(self) -> HttpResponse {
+        self.0.error_response
     }
 }
 

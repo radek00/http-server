@@ -166,7 +166,7 @@ impl HttpServer {
                                 .unwrap();
                         }
 
-                        err.error_response
+                        err.into_response()
                     })
                     .write_response(&mut stream, self.compression)
                     .unwrap_or_else(|err| {
