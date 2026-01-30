@@ -6,7 +6,7 @@ use scratch_server::{
     api_error::ApiError, Body, Cors, HttpMethod, HttpResponse, HttpServer, Router, STATIC_FILES,
 };
 use std::{
-    fs::{self, File},
+    fs::File,
     path::PathBuf,
     sync::Arc,
 };
@@ -125,17 +125,87 @@ pub fn create_routes(
 ) -> Box<dyn Fn(&mut Router) + Send + Sync> {
     if let Some(path) = index_path {
         let path_arc = Arc::new(path);
+        
+        let base_dir = path_arc
+            .parent()
+            .map(|p| p.to_path_buf())
+            .unwrap_or_else(|| PathBuf::from("./"));
+        println!("Base directory: {:?}", base_dir);
+        let base_dir_arc = Arc::new(base_dir);
+        
         let closure = {
             move |router: &mut Router| {
-                let path_arc = Arc::clone(&path_arc);
+                let path_arc_root = Arc::clone(&path_arc);
                 router.add_route(
                     "/",
                     HttpMethod::GET,
                     move |_, _| {
-                        let file = fs::read_to_string(path_arc.as_ref())?;
+                        let file = File::open(path_arc_root.as_ref())?;
+                        let file_name = path_arc_root
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("index.html")
+                            .to_string();
+                        let content_type = mime_guess::from_path(&file_name)
+                            .first_or_text_plain()
+                            .to_string();
                         Ok(HttpResponse::new(
-                            Some(Body::Text(file)),
-                            Some("text/html".to_string()),
+                            Some(Body::FileStream(file, file_name)),
+                            Some(content_type),
+                            200,
+                        ))
+                    },
+                    authorize,
+                );
+
+                let base_dir_clone = Arc::clone(&base_dir_arc);
+                router.add_route(
+                    "/*",
+                    HttpMethod::GET,
+                    move |_, params| {
+                        let requested_path = params.get("wildcard").unwrap_or(&"").trim_start_matches('/');
+                        println!("Requested path: {}", requested_path);
+                        
+                        let decoded_path = percent_encoding::percent_decode_str(requested_path)
+                            .decode_utf8_lossy()
+                            .to_string();
+
+                        println!("Decoded path: {}", decoded_path);
+                        let file_path = base_dir_clone.join(&decoded_path);
+                        println!("Full file path: {:?}", file_path);
+                        let canonical_path = file_path.canonicalize().map_err(|_| {
+                            ApiError::new_with_html(404, "File not found")
+                        })?;
+                        println!("Canonical path: {:?}", canonical_path);
+                        let canonical_base_dir = base_dir_clone.canonicalize()?;
+                        println!("Canonical base dir: {:?}", canonical_base_dir);
+
+                        if !canonical_path.starts_with(&canonical_base_dir) {
+                            return Err(ApiError::new_with_html(
+                                403,
+                                "Access forbidden: path outside base directory",
+                            ));
+                        }
+
+                        if !canonical_path.is_file() {
+                            return Err(ApiError::new_with_html(404, "File not found"));
+                        }
+
+                        let file = File::open(&canonical_path)?;
+                        
+                        let file_name = canonical_path
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("file")
+                            .to_string();
+
+                        let content_type = mime_guess::from_path(&file_name)
+                            .first_or_octet_stream()
+                            .to_string();
+
+                        Ok(HttpResponse::new(
+                            Some(Body::FileStream(file, file_name)),
+                            Some(content_type),
                             200,
                         ))
                     },
@@ -191,7 +261,7 @@ pub fn create_routes(
                     );
                     let file = File::open(file_path)?;
                     Ok(HttpResponse::new(
-                        Some(Body::FileStream(file, file_name)),
+                        Some(Body::DownloadStream(file, file_name)),
                         content_type,
                         200,
                     ))
