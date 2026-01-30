@@ -101,7 +101,7 @@ impl Router {
             + 'static,
     {
         let pattern = if path == "/*" {
-            "^.*$".to_string()
+            "^(?P<wildcard>.*)$".to_string()
         } else {
             format!("^{}$", path.replace('{', "(?P<").replace('}', ">[^/]+)"))
         };
