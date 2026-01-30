@@ -12,6 +12,7 @@ use crate::ReadWrite;
 pub enum Body {
     Text(String),
     Json(serde_json::Value),
+    DownloadStream(File, String),
     FileStream(File, String),
     StaticFile(&'static [u8], String),
 }
@@ -52,6 +53,16 @@ impl HttpResponse {
         });
 
         if let Some(body) = self.body {
+            match body {
+                Body::DownloadStream(file, name) => {
+                    return handle_file_stream(file, name, base_headers, stream, true);
+                }
+                Body::FileStream(file, name) => {
+                    return handle_file_stream(file, name, base_headers, stream, false);
+                }
+                _ => {}
+            }
+            
             if compress {
                 base_headers.push_str("Content-Encoding: gzip\r\n");
                 base_headers.push_str("Vary: Accept-Encoding\r\n");
@@ -70,9 +81,7 @@ impl HttpResponse {
                         stream.write_all(&encoded)?;
                         return Ok(());
                     }
-                    Body::FileStream(file, name) => {
-                        return handle_file_stream(file, name, base_headers, stream);
-                    }
+                    Body::DownloadStream(_, _) | Body::FileStream(_, _) => unreachable!(),
                 }
 
                 let encoded = encoder.finish()?;
@@ -95,8 +104,11 @@ impl HttpResponse {
                         stream.write_all(file)?;
                         return Ok(());
                     }
+                    Body::DownloadStream(file, name) => {
+                        return handle_file_stream(file, name, base_headers, stream, true);
+                    }
                     Body::FileStream(file, name) => {
-                        return handle_file_stream(file, name, base_headers, stream);
+                        return handle_file_stream(file, name, base_headers, stream, false);
                     }
                 };
                 base_headers.push_str(&format!(
@@ -123,12 +135,21 @@ fn handle_file_stream(
     name: String,
     mut headers: String,
     mut stream: &mut Box<dyn ReadWrite>,
+    is_attachment: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    headers.push_str(&format!(
-        "Content-Disposition: attachment; filename=\"{}\"\r\n\
-    \rn",
-        name
-    ));
+    let metadata = file.metadata()?;
+    let file_size = metadata.len();
+    
+    headers.push_str(&format!("Content-Length: {}\r\n", file_size));
+    
+    if is_attachment {
+        headers.push_str(&format!(
+            "Content-Disposition: attachment; filename=\"{}\"\r\n",
+            name
+        ));
+    }
+    headers.push_str("\r\n");
+    
     stream.write_all(headers.as_bytes())?;
     let mut reader = BufReader::new(file);
     io::copy(&mut reader, &mut stream)?;
