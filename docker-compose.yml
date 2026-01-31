@@ -1,0 +1,53 @@
+services:
+  http-server:
+    build: .
+    image: scratch-server:latest
+    container_name: http-server
+    ports:
+      - "7878:7878"
+    environment:
+      # Server configuration
+      - PORT=7878
+      - THREADS=12
+      - IP=0.0.0.0
+      
+      # Features (set to 'true' to enable)
+      - SILENT=false
+      - CORS=false
+      - COMPRESSION=true
+      
+      # Authentication (uncomment and set to enable)
+      # - AUTH=username:password
+      
+      # TLS/SSL (uncomment and set paths to enable)
+      - CERT=/certs/keyStore.p12
+      - CERT_PASS=testing
+      
+      # Custom index file (uncomment and set path to enable)
+      # - INDEX=/srv/custom/index.html
+      
+      # Directory to serve files from
+      - SERVE_DIR=/srv
+    
+    volumes:
+      # Mount local directory to serve and upload files (read-write)
+      - ./public:/srv
+      
+      # Mount certificates if using TLS (uncomment if needed)
+      - ./certs:/certs:ro
+    
+    restart: unless-stopped
+    
+    # Security options
+    security_opt:
+      - no-new-privileges:true
+    
+    # Resource limits (optional)
+    # deploy:
+    #   resources:
+    #     limits:
+    #       cpus: '1.0'
+    #       memory: 512M
+    #     reservations:
+    #       cpus: '0.5'
+    #       memory: 256M
