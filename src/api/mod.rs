@@ -126,7 +126,6 @@ pub fn create_routes(
             .parent()
             .map(|p| p.to_path_buf())
             .unwrap_or_else(|| PathBuf::from("./"));
-        println!("Base directory: {:?}", base_dir);
         let base_dir_arc = Arc::new(base_dir);
 
         let closure = {
@@ -163,21 +162,16 @@ pub fn create_routes(
                             .get("wildcard")
                             .unwrap_or(&"")
                             .trim_start_matches('/');
-                        println!("Requested path: {}", requested_path);
 
                         let decoded_path = percent_encoding::percent_decode_str(requested_path)
                             .decode_utf8_lossy()
                             .to_string();
 
-                        println!("Decoded path: {}", decoded_path);
                         let file_path = base_dir_clone.join(&decoded_path);
-                        println!("Full file path: {:?}", file_path);
                         let canonical_path = file_path
                             .canonicalize()
                             .map_err(|_| ApiError::new_with_html(404, "File not found"))?;
-                        println!("Canonical path: {:?}", canonical_path);
                         let canonical_base_dir = base_dir_clone.canonicalize()?;
-                        println!("Canonical base dir: {:?}", canonical_base_dir);
 
                         if !canonical_path.starts_with(&canonical_base_dir) {
                             return Err(ApiError::new_with_html(
