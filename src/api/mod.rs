@@ -5,11 +5,7 @@ use clap::builder::{
 use scratch_server::{
     api_error::ApiError, Body, Cors, HttpMethod, HttpResponse, HttpServer, Router, STATIC_FILES,
 };
-use std::{
-    fs::File,
-    path::PathBuf,
-    sync::Arc,
-};
+use std::{fs::File, path::PathBuf, sync::Arc};
 use utils::parse_index_path;
 
 use self::utils::list_directory;
@@ -125,14 +121,14 @@ pub fn create_routes(
 ) -> Box<dyn Fn(&mut Router) + Send + Sync> {
     if let Some(path) = index_path {
         let path_arc = Arc::new(path);
-        
+
         let base_dir = path_arc
             .parent()
             .map(|p| p.to_path_buf())
             .unwrap_or_else(|| PathBuf::from("./"));
         println!("Base directory: {:?}", base_dir);
         let base_dir_arc = Arc::new(base_dir);
-        
+
         let closure = {
             move |router: &mut Router| {
                 let path_arc_root = Arc::clone(&path_arc);
@@ -163,9 +159,12 @@ pub fn create_routes(
                     "/*",
                     HttpMethod::GET,
                     move |_, params| {
-                        let requested_path = params.get("wildcard").unwrap_or(&"").trim_start_matches('/');
+                        let requested_path = params
+                            .get("wildcard")
+                            .unwrap_or(&"")
+                            .trim_start_matches('/');
                         println!("Requested path: {}", requested_path);
-                        
+
                         let decoded_path = percent_encoding::percent_decode_str(requested_path)
                             .decode_utf8_lossy()
                             .to_string();
@@ -173,9 +172,9 @@ pub fn create_routes(
                         println!("Decoded path: {}", decoded_path);
                         let file_path = base_dir_clone.join(&decoded_path);
                         println!("Full file path: {:?}", file_path);
-                        let canonical_path = file_path.canonicalize().map_err(|_| {
-                            ApiError::new_with_html(404, "File not found")
-                        })?;
+                        let canonical_path = file_path
+                            .canonicalize()
+                            .map_err(|_| ApiError::new_with_html(404, "File not found"))?;
                         println!("Canonical path: {:?}", canonical_path);
                         let canonical_base_dir = base_dir_clone.canonicalize()?;
                         println!("Canonical base dir: {:?}", canonical_base_dir);
@@ -192,7 +191,7 @@ pub fn create_routes(
                         }
 
                         let file = File::open(&canonical_path)?;
-                        
+
                         let file_name = canonical_path
                             .file_name()
                             .and_then(|n| n.to_str())
