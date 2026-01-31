@@ -62,7 +62,7 @@ impl HttpResponse {
                 }
                 _ => {}
             }
-            
+
             if compress {
                 base_headers.push_str("Content-Encoding: gzip\r\n");
                 base_headers.push_str("Vary: Accept-Encoding\r\n");
@@ -139,9 +139,9 @@ fn handle_file_stream(
 ) -> Result<(), Box<dyn std::error::Error>> {
     let metadata = file.metadata()?;
     let file_size = metadata.len();
-    
+
     headers.push_str(&format!("Content-Length: {}\r\n", file_size));
-    
+
     if is_attachment {
         headers.push_str(&format!(
             "Content-Disposition: attachment; filename=\"{}\"\r\n",
@@ -149,7 +149,7 @@ fn handle_file_stream(
         ));
     }
     headers.push_str("\r\n");
-    
+
     stream.write_all(headers.as_bytes())?;
     let mut reader = BufReader::new(file);
     io::copy(&mut reader, &mut stream)?;
