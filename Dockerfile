@@ -27,8 +27,8 @@ RUN apk add --no-cache ca-certificates
 RUN addgroup -g 1000 appuser && \
     adduser -D -u 1000 -G appuser appuser
 
-# Create directory for serving files
-RUN mkdir -p /srv && chown appuser:appuser /srv
+# Create directory for serving files and custom index
+RUN mkdir -p /srv /index && chown appuser:appuser /srv /index
 
 WORKDIR /srv
 
@@ -44,8 +44,7 @@ ENV PORT=7878 \
     IP=0.0.0.0 \
     SILENT=false \
     CORS=false \
-    COMPRESSION=false \
-    SERVE_DIR=/srv
+    COMPRESSION=false
 
 # Expose the default port
 EXPOSE 7878
@@ -57,7 +56,7 @@ ENTRYPOINT ["/bin/sh", "-c", "\
     [ \"${CORS}\" = \"true\" ] && ARGS=\"${ARGS} --cors\"; \
     [ \"${COMPRESSION}\" = \"true\" ] && ARGS=\"${ARGS} --compression\"; \
     [ -n \"${AUTH}\" ] && ARGS=\"${ARGS} --auth ${AUTH}\"; \
-    [ -n \"${CERT}\" ] && ARGS=\"${ARGS} --cert ${CERT}\"; \
+    [ -n \"${CERT}\" ] && ARGS=\"${ARGS} --cert /certs/${CERT}\"; \
     [ -n \"${CERT_PASS}\" ] && ARGS=\"${ARGS} --certpass ${CERT_PASS}\"; \
-    [ -n \"${INDEX}\" ] && ARGS=\"${ARGS} --index ${INDEX}\"; \
-    cd ${SERVE_DIR} && exec scratch-server ${ARGS}"]
+    [ -f /index/index.html ] && ARGS=\"${ARGS} --index /index/index.html\"; \
+    exec scratch-server ${ARGS}"]
