@@ -7,7 +7,6 @@ services:
       - "7878:7878"
     environment:
       # Server configuration
-      - PORT=7878
       - THREADS=12
       - IP=0.0.0.0
       

@@ -39,8 +39,7 @@ COPY --from=builder /app/target/release/scratch-server /usr/local/bin/scratch-se
 USER appuser
 
 # Environment variables (defaults)
-ENV PORT=7878 \
-    THREADS=12 \
+ENV THREADS=12 \
     IP=0.0.0.0 \
     SILENT=false \
     CORS=false \
@@ -51,7 +50,7 @@ EXPOSE 7878
 
 # Entry point script that converts env vars to CLI args
 ENTRYPOINT ["/bin/sh", "-c", "\
-    ARGS=\"--port ${PORT} --threads ${THREADS} --ip ${IP}\"; \
+    ARGS=\"--port 7878 --threads ${THREADS} --ip ${IP}\"; \
     [ \"${SILENT}\" = \"true\" ] && ARGS=\"${ARGS} --silent\"; \
     [ \"${CORS}\" = \"true\" ] && ARGS=\"${ARGS} --cors\"; \
     [ \"${COMPRESSION}\" = \"true\" ] && ARGS=\"${ARGS} --compression\"; \
