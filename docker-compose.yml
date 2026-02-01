@@ -7,16 +7,13 @@ services:
       - "7878:7878"
     environment:
       # Server configuration
-      - THREADS=12
-      - IP=0.0.0.0
-      
-      # Features (set to 'true' to enable)
+      - THREADS=12      
       - SILENT=false
       - CORS=false
       - COMPRESSION=true
       
       # Authentication (uncomment and set to enable)
-      - AUTH=username:password
+      #- AUTH=username:password
       
       # TLS/SSL (uncomment and set certificate password)
       - CERT=keyStore.p12
