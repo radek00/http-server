@@ -2,7 +2,7 @@
 FROM rust:alpine3.23 AS builder
 
 # Install build dependencies
-RUN apk add --no-cache musl-dev openssl-dev openssl-libs-static perl make
+RUN apk add --no-cache perl make
 
 # Create a new empty project
 WORKDIR /app
@@ -19,9 +19,6 @@ RUN cargo build --release
 
 # Runtime stage
 FROM alpine:3.23.3
-
-# Install runtime dependencies
-RUN apk add --no-cache ca-certificates
 
 # Create a non-root user
 RUN addgroup -g 1000 appuser && \
