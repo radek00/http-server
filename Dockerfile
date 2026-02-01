@@ -40,7 +40,6 @@ USER appuser
 
 # Environment variables (defaults)
 ENV THREADS=12 \
-    IP=0.0.0.0 \
     SILENT=false \
     CORS=false \
     COMPRESSION=false
@@ -50,7 +49,7 @@ EXPOSE 7878
 
 # Entry point script that converts env vars to CLI args
 ENTRYPOINT ["/bin/sh", "-c", "\
-    ARGS=\"--port 7878 --threads ${THREADS} --ip ${IP}\"; \
+    ARGS=\"--port 7878 --threads ${THREADS} --ip 0.0.0.0\"; \
     [ \"${SILENT}\" = \"true\" ] && ARGS=\"${ARGS} --silent\"; \
     [ \"${CORS}\" = \"true\" ] && ARGS=\"${ARGS} --cors\"; \
     [ \"${COMPRESSION}\" = \"true\" ] && ARGS=\"${ARGS} --compression\"; \
