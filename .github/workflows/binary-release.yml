@@ -123,3 +123,11 @@ jobs:
         run: cargo publish --token ${{ secrets.CARGO_TOKEN }}
         env:
           CARGO_TOKEN: ${{ secrets.CARGO_TOKEN }}
+
+  docker:
+    name: Build and Push Docker Image
+    needs: release
+    uses: ./.github/workflows/docker-publish.yml
+    secrets: inherit
+    with:
+      test_mode: ${{ inputs.test_mode || false }}
