@@ -67,7 +67,12 @@ jobs:
 
       - name: Get the release version from the tag
         shell: bash
-        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/* ]]; then
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
+          else
+            echo "VERSION=test-build-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_ENV
+          fi
 
       - name: Build binary
         uses: houseabsolute/actions-rust-cross@v1
