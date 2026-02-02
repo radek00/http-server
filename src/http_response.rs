@@ -13,7 +13,7 @@ pub enum Body {
     Text(String),
     Json(serde_json::Value),
     DownloadStream(File, String),
-    FileStream(File, String),
+    FileStream(File),
     StaticFile(&'static [u8], String),
 }
 
@@ -55,10 +55,13 @@ impl HttpResponse {
         if let Some(body) = self.body {
             match body {
                 Body::DownloadStream(file, name) => {
-                    return handle_file_stream(file, name, base_headers, stream, true);
+                    return handle_file_stream(file, Some(name), base_headers, stream, true);
                 }
-                Body::FileStream(file, name) => {
-                    return handle_file_stream(file, name, base_headers, stream, false);
+                Body::FileStream(file) => {
+                    if compress {
+                        return handle_compressed_file_stream(file, base_headers, stream);
+                    }
+                    return handle_file_stream(file, None, base_headers, stream, false);
                 }
                 _ => {}
             }
@@ -81,7 +84,7 @@ impl HttpResponse {
                         stream.write_all(&encoded)?;
                         return Ok(());
                     }
-                    Body::DownloadStream(_, _) | Body::FileStream(_, _) => unreachable!(),
+                    Body::DownloadStream(_, _) | Body::FileStream(_) => unreachable!(),
                 }
 
                 let encoded = encoder.finish()?;
@@ -105,10 +108,10 @@ impl HttpResponse {
                         return Ok(());
                     }
                     Body::DownloadStream(file, name) => {
-                        return handle_file_stream(file, name, base_headers, stream, true);
+                        return handle_file_stream(file, Some(name), base_headers, stream, true);
                     }
-                    Body::FileStream(file, name) => {
-                        return handle_file_stream(file, name, base_headers, stream, false);
+                    Body::FileStream(file) => {
+                        return handle_file_stream(file, None, base_headers, stream, false);
                     }
                 };
                 base_headers.push_str(&format!(
@@ -132,7 +135,7 @@ impl HttpResponse {
 
 fn handle_file_stream(
     file: File,
-    name: String,
+    mut name: Option<String>,
     mut headers: String,
     mut stream: &mut Box<dyn ReadWrite>,
     is_attachment: bool,
@@ -145,7 +148,7 @@ fn handle_file_stream(
     if is_attachment {
         headers.push_str(&format!(
             "Content-Disposition: attachment; filename=\"{}\"\r\n",
-            name
+            name.take().unwrap()
         ));
     }
     headers.push_str("\r\n");
@@ -153,5 +156,28 @@ fn handle_file_stream(
     stream.write_all(headers.as_bytes())?;
     let mut reader = BufReader::new(file);
     io::copy(&mut reader, &mut stream)?;
+    Ok(())
+}
+
+fn handle_compressed_file_stream(
+    file: File,
+    mut headers: String,
+    stream: &mut Box<dyn ReadWrite>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if headers.contains("Connection: keep-alive") {
+        headers = headers.replace("Connection: keep-alive", "Connection: close");
+    }
+    headers.push_str("Content-Encoding: gzip\r\n");
+    headers.push_str("Vary: Accept-Encoding\r\n");
+    headers.push_str("\r\n");
+
+    stream.write_all(headers.as_bytes())?;
+
+    let mut encoder = GzEncoder::new(stream, Compression::default());
+    let mut reader = BufReader::new(file);
+    println!("headers: {}", headers);
+    io::copy(&mut reader, &mut encoder)?;
+    encoder.finish()?;
+
     Ok(())
 }
