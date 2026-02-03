@@ -1,7 +1,7 @@
 services:
   http-server:
     build: .
-    image: scratch-server:latest
+    image: chupacabra500/scratch-server:latest
     container_name: http-server
     ports:
       - "7878:7878"
@@ -25,7 +25,7 @@ services:
       - ./testData/public:/srv
       
       # Mount custom index directory (automatically uses /index/index.html if present)
-      - ./testData/public:/index:ro
+      #- ./testData/public:/index:ro
       # Mount if you want to use a different name than index.html
       #- ./testData/public/custom_index.html:/index/index.html:ro
       
