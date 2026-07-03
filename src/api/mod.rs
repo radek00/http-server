@@ -2,7 +2,7 @@ use clap::builder::{
     styling::{AnsiColor, Effects},
     Styles,
 };
-use mime_guess::mime ;
+use mime_guess::mime;
 use scratch_server::{
     api_error::ApiError, Body, Cors, HttpMethod, HttpResponse, HttpServer, Router, STATIC_FILES,
 };
