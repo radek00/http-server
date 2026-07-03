@@ -2,6 +2,7 @@ use clap::builder::{
     styling::{AnsiColor, Effects},
     Styles,
 };
+use mime_guess::mime;
 use scratch_server::{
     api_error::ApiError, Body, Cors, HttpMethod, HttpResponse, HttpServer, Router, STATIC_FILES,
 };
@@ -128,86 +129,90 @@ pub fn create_routes(
             .unwrap_or_else(|| PathBuf::from("./"));
         let base_dir_arc = Arc::new(base_dir);
 
-        let closure =
-            {
-                move |router: &mut Router| {
-                    let path_arc_root = Arc::clone(&path_arc);
-                    router.add_route(
-                        "/",
-                        HttpMethod::GET,
-                        move |_, _| {
-                            let file = File::open(path_arc_root.as_ref())?;
-                            let file_name = path_arc_root
-                                .file_name()
-                                .and_then(|n| n.to_str())
-                                .unwrap_or("index.html")
-                                .to_string();
-                            let content_type = mime_guess::from_path(&file_name)
-                                .first_or_text_plain()
-                                .to_string();
-                            Ok(HttpResponse::new(
-                                Some(Body::FileStream(file)),
-                                Some(content_type),
-                                200,
-                            ))
-                        },
-                        authorize,
-                    );
+        let closure = {
+            move |router: &mut Router| {
+                let path_arc_root = Arc::clone(&path_arc);
+                router.add_route(
+                    "/",
+                    HttpMethod::GET,
+                    move |_, _| {
+                        let file = File::open(path_arc_root.as_ref())?;
+                        let file_name = path_arc_root
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("index.html")
+                            .to_string();
+                        let content_type = mime_guess::from_path(&file_name)
+                            .first_or_text_plain()
+                            .to_string();
+                        Ok(HttpResponse::new(
+                            Some(Body::FileStream(file)),
+                            Some(content_type),
+                            200,
+                        ))
+                    },
+                    authorize,
+                );
 
-                    let base_dir_clone = Arc::clone(&base_dir_arc);
-                    router.add_route(
-                        "/*",
-                        HttpMethod::GET,
-                        move |_, params| {
-                            let requested_path = params
-                                .get("wildcard")
-                                .unwrap_or(&"")
-                                .trim_start_matches('/');
+                let base_dir_clone = Arc::clone(&base_dir_arc);
+                router.add_route(
+                    "/*",
+                    HttpMethod::GET,
+                    move |_, params| {
+                        let requested_path = params
+                            .get("wildcard")
+                            .unwrap_or(&"")
+                            .trim_start_matches('/');
 
-                            let decoded_path = percent_encoding::percent_decode_str(requested_path)
-                                .decode_utf8_lossy()
-                                .to_string();
+                        let decoded_path = percent_encoding::percent_decode_str(requested_path)
+                            .decode_utf8_lossy()
+                            .to_string();
 
-                            let file_path = base_dir_clone.join(&decoded_path);
-                            let canonical_path = file_path
-                                .canonicalize()
-                                .map_err(|_| ApiError::new_with_html(404, "File not found"))?;
-                            let canonical_base_dir = base_dir_clone.canonicalize()?;
+                        let file_path = base_dir_clone.join(&decoded_path);
+                        let canonical_path = file_path
+                            .canonicalize()
+                            .map_err(|_| ApiError::new_with_html(404, "File not found"))?;
+                        let canonical_base_dir = base_dir_clone.canonicalize()?;
 
-                            if !canonical_path.starts_with(&canonical_base_dir) {
-                                return Err(ApiError::new_with_html(
-                                    403,
-                                    "Access forbidden: path outside base directory",
-                                ));
-                            }
+                        if !canonical_path.starts_with(&canonical_base_dir) {
+                            return Err(ApiError::new_with_html(
+                                403,
+                                "Access forbidden: path outside base directory",
+                            ));
+                        }
 
-                            if !canonical_path.is_file() {
-                                return Err(ApiError::new_with_html(404, "File not found"));
-                            }
+                        if !canonical_path.is_file() {
+                            return Err(ApiError::new_with_html(404, "File not found"));
+                        }
 
-                            let file = File::open(&canonical_path)?;
+                        let file = File::open(&canonical_path)?;
 
-                            let file_name = canonical_path
-                                .file_name()
-                                .and_then(|n| n.to_str())
-                                .unwrap_or("file")
-                                .to_string();
+                        let file_name = canonical_path
+                            .file_name()
+                            .and_then(|n| n.to_str())
+                            .unwrap_or("file")
+                            .to_string();
 
-                            let content_type = mime_guess::from_path(&file_name)
-                                .first_or_octet_stream()
-                                .to_string();
+                        let content_type =
+                            mime_guess::from_path(&file_name).first_or_octet_stream();
 
-                            Ok(HttpResponse::new(
-                                Some(Body::FileStream(file)),
-                                Some(content_type),
-                                200,
-                            )
-                            .add_response_header("Cache-Control", "public, max-age=31536000"))
-                        },
-                        authorize,
-                    );
-                }
-            };
+                        let cache_header = if content_type == mime::TEXT_HTML {
+                            "no-cache"
+                        } else {
+                            "public, max-age=31536000"
+                        };
+
+                        Ok(HttpResponse::new(
+                            Some(Body::FileStream(file)),
+                            Some(content_type.to_string()),
+                            200,
+                        )
+                        .add_response_header("Cache-Control", cache_header))
+                    },
+                    authorize,
+                );
+            }
+        };
         return Box::new(closure);
     } else {
         let closure = move |router: &mut Router| {
@@ -219,6 +224,14 @@ pub fn create_routes(
                         Some(file) => file,
                         None => "index.html",
                     };
+
+                    let mime_type = mime_guess::from_path(file_name).first_or_text_plain();
+
+                    let cache_header = if mime_type == mime::TEXT_HTML {
+                        "no-cache"
+                    } else {
+                        "public, max-age=31536000"
+                    };
                     Ok(HttpResponse::new(
                         Some(Body::StaticFile(
                             STATIC_FILES
@@ -227,14 +240,10 @@ pub fn create_routes(
                                 .contents(),
                             file_name.to_string(),
                         )),
-                        Some(
-                            mime_guess::from_path(file_name)
-                                .first_or_text_plain()
-                                .to_string(),
-                        ),
+                        Some(mime_type.to_string()),
                         200,
                     )
-                    .add_response_header("Cache-Control", "public, max-age=31536000"))
+                    .add_response_header("Cache-Control", cache_header))
                 },
                 authorize,
             );
