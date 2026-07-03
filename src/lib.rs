@@ -277,26 +277,18 @@ fn handle_connection(
     let (method, path, headers) = parse_http(&mut reader, &mut request)?;
 
     let mut buffer = Vec::new();
-    let body;
 
-    match headers.get("Content-Type") {
-        Some(content_type) => {
-            if content_type.contains("multipart/form-data") {
-                let path = headers.get("Path").unwrap();
-                let response =
-                    handle_multipart_file_upload(content_type, &headers, &mut reader, path)
-                        .map_err(|err| {
-                            ApiError::new_with_html(400, &format!("File upload error: {}", err))
-                        })?;
-                return Ok(response);
-            } else {
-                body = parse_body(&headers, reader, &mut buffer)?;
-            }
+    let body = match headers.get("Content-Type") {
+        Some(content_type) if content_type.contains("multipart/form-data") => {
+            let path = headers.get("Path").unwrap();
+            let response = handle_multipart_file_upload(content_type, &headers, &mut reader, path)
+                .map_err(|err| {
+                    ApiError::new_with_html(400, &format!("File upload error: {}", err))
+                })?;
+            return Ok(response);
         }
-        None => {
-            body = parse_body(&headers, reader, &mut buffer)?;
-        }
-    }
+        _ => parse_body(&headers, reader, &mut buffer)?,
+    };
 
     let response = router.route(path, method, body.as_deref(), peer_addr, &headers)?;
     Ok(response)
