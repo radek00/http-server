@@ -170,6 +170,31 @@ fn silent_argument_disables_startup_logging() {
 }
 
 #[test]
+fn requests_are_logged_when_logging_enabled() {
+    let mut server = spawn_server(&["--ip", "127.0.0.1"], true);
+    let response = http_client()
+        .get(server.base_url())
+        .send()
+        .expect("Request to server failed");
+    assert!(response.status().is_success());
+
+    server.child.kill().expect("Failed to kill server");
+    server.child.wait().expect("Failed to wait for server");
+
+    if let Some(mut stdout) = server.child.stdout.take() {
+        let mut stdout_string = String::new();
+        stdout
+            .read_to_string(&mut stdout_string)
+            .expect("Failed to read server stdout");
+        println!("Server stdout:\n{}", stdout_string);
+        assert!(stdout_string.contains("127.0.0.1"));
+        assert!(stdout_string.contains("200"));
+        assert!(stdout_string.contains("GET"));
+        assert!(stdout_string.contains("/"));
+    }
+}
+
+#[test]
 fn cors_argument_adds_cors_headers_to_options_response() {
     let server = spawn_server(&["--ip", "127.0.0.1", "--cors"], false);
 
