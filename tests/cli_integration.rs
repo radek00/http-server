@@ -93,7 +93,7 @@ fn http_client() -> Client {
         .expect("Failed to build HTTP client")
 }
 
-fn https_client_insecure() -> Client {
+fn https_client() -> Client {
     ClientBuilder::new()
         .danger_accept_invalid_certs(true)
         .timeout(Duration::from_secs(5))
@@ -126,16 +126,14 @@ fn port_argument_starts_server_on_selected_port() {
 }
 
 #[test]
-#[ignore = "Set TEST_CERT_PASS and run this test explicitly to validate --cert and --certpass"]
 fn cert_and_certpass_enable_https_requests() {
-    let cert_pass = std::env::var("TEST_CERT_PASS")
-        .expect("Missing TEST_CERT_PASS for cert/certpass integration test");
+    let cert_pass = "testing";
     let cert_path = testdata_path(&["certs", "keyStore.p12"]);
     let cert_value = cert_path.to_string_lossy().to_string();
     let server = spawn_server(&["--cert", &cert_value, "--certpass", &cert_pass], false);
 
-    let response = https_client_insecure()
-        .get(format!("{}/api/directory?path=.", server.https_base_url()))
+    let response = https_client()
+        .get(server.https_base_url())
         .send()
         .expect("HTTPS request failed");
 
