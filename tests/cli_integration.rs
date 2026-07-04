@@ -4,7 +4,7 @@ use std::fs;
 use std::io::{Read, Write};
 use std::net::TcpListener;
 use std::net::{Shutdown, TcpStream};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::thread;
 use std::time::Duration;
@@ -103,15 +103,11 @@ fn https_client() -> Client {
 
 fn testdata_path(parts: &[&str]) -> PathBuf {
     let mut path = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    path.push("testData");
+    path.push("tests/data");
     for part in parts {
         path.push(part);
     }
     path
-}
-
-fn fixture_text(path: &Path) -> String {
-    fs::read_to_string(path).expect("Failed to read fixture file")
 }
 
 #[test]
@@ -277,7 +273,7 @@ fn compression_argument_sets_gzip_content_encoding() {
 fn index_argument_serves_custom_index_file() {
     let custom_index = testdata_path(&["public", "custom_index.html"]);
     let custom_index_value = custom_index.to_string_lossy().to_string();
-    let expected = fixture_text(&custom_index);
+    let expected = fs::read_to_string(&custom_index).expect("Failed to read fixture file");
 
     let server = spawn_server(
         &["--ip", "127.0.0.1", "--index", &custom_index_value],
