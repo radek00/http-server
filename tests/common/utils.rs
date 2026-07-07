@@ -1,4 +1,10 @@
-use std::{net::TcpListener, path::PathBuf, process::{Child, Command, Stdio}, thread, time::Duration};
+use std::{
+    net::TcpListener,
+    path::PathBuf,
+    process::{Child, Command, Stdio},
+    thread,
+    time::Duration,
+};
 
 use reqwest::blocking::{Client, ClientBuilder};
 

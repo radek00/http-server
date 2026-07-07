@@ -37,4 +37,4 @@ termcolor = "1.4.1"
 regex = "1.12.4"
 
 [dev-dependencies]
-reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls", "json"] }
