@@ -1,9 +1,8 @@
 use reqwest::blocking::{Client, ClientBuilder};
 use reqwest::header::ACCEPT_ENCODING;
 use std::fs;
-use std::io::{Read, Write};
+use std::io::Read;
 use std::net::TcpListener;
-use std::net::{Shutdown, TcpStream};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::thread;
@@ -89,12 +88,14 @@ fn spawn_server(extra_args: &[&str], capture_output: bool) -> TestServer {
 fn http_client() -> Client {
     Client::builder()
         .timeout(Duration::from_secs(5))
+        .http1_title_case_headers()
         .build()
         .expect("Failed to build HTTP client")
 }
 
 fn https_client() -> Client {
     ClientBuilder::new()
+        .http1_title_case_headers()
         .danger_accept_invalid_certs(true)
         .timeout(Duration::from_secs(5))
         .build()
@@ -250,24 +251,13 @@ fn auth_argument_requires_credentials_and_allows_valid_basic_auth() {
         Some("Basic")
     );
 
-    // Use raw HTTP to preserve exact Authorization header casing expected by parser.
-    let mut stream = TcpStream::connect(("127.0.0.1", server.port)).expect("Failed to connect");
-    stream
-        .write_all(
-            b"GET /api/directory?path=. HTTP/1.1\r\nHost: 127.0.0.1\r\nAuthorization: Basic dXNlcjpwYXNz\r\nConnection: close\r\n\r\n",
-        )
-        .expect("Failed to write request");
-    let _ = stream.shutdown(Shutdown::Write);
+    let authorized = http_client()
+        .get(server.base_url())
+        .basic_auth("user", Some("pass"))
+        .send()
+        .expect("Authorized request failed");
 
-    let mut raw_response = String::new();
-    stream
-        .read_to_string(&mut raw_response)
-        .expect("Failed reading auth response");
-
-    assert!(
-        raw_response.starts_with("HTTP/1.1 200"),
-        "Expected authorized response, got: {raw_response}"
-    );
+    assert_eq!(authorized.status().as_u16(), 200);
 }
 
 #[test]
