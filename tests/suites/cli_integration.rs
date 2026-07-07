@@ -6,8 +6,6 @@ use std::time::Duration;
 
 use crate::common::utils::{http_client, https_client, spawn_server, testdata_path};
 
-mod common;
-
 #[test]
 fn port_argument_starts_server_on_selected_port() {
     let server = spawn_server(&["--ip", "127.0.0.1"], false);

@@ -1,8 +1,6 @@
 use crate::common::utils::{http_client, spawn_server, testdata_path};
 use serde_json::Value;
 
-mod common;
-
 #[test]
 fn api_directory_returns_json_with_correct_content_type() {
     let server = spawn_server(&["--ip", "127.0.0.1"], false);
