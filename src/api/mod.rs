@@ -13,7 +13,13 @@ use self::utils::list_directory;
 
 mod utils;
 
-pub fn build_server() -> (HttpServer, bool, Option<PathBuf>) {
+pub struct ServerConfig {
+    pub server: HttpServer,
+    pub authorize: bool,
+    pub index_path: Option<PathBuf>,
+}
+
+pub fn build_server() -> ServerConfig {
     let username_password_validator = |s: &str| {
         if s.contains(':') && s.split(':').count() == 2 {
             Ok(s.to_owned())
@@ -112,7 +118,11 @@ pub fn build_server() -> (HttpServer, bool, Option<PathBuf>) {
         );
     }
     let index_path = args.remove_one::<PathBuf>("index");
-    (server, auth, index_path)
+    ServerConfig {
+        server,
+        authorize: auth,
+        index_path,
+    }
 }
 
 #[allow(clippy::needless_return)]
