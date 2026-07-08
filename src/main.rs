@@ -1,12 +1,14 @@
-use api::build_server;
-
+use api::{build_server, ServerConfig};
 mod api;
 
 fn main() {
-    let server = build_server();
+    let ServerConfig {
+        server,
+        authorize,
+        index_path,
+    } = build_server();
     server
-        .0
-        .add_routes(api::create_routes(server.1, server.2))
+        .add_routes(api::create_routes(authorize, index_path))
         .run()
         .expect("Starting server failed");
 }

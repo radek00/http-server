@@ -153,22 +153,32 @@ impl HttpServer {
             let logger_clone = self.logger.clone();
 
             pool.execute(move || {
-                handle_connection(&mut stream, &router_clone, peer_addr.ip())
-                    .unwrap_or_else(|err| {
-                        if let (Some(method), Some(path)) = (&err.method, &err.path) {
-                            router_clone
-                                .log_response(
-                                    err.error_response.status_code,
-                                    path,
-                                    method,
-                                    peer_addr.ip(),
-                                )
-                                .unwrap();
-                        }
+                let (response, req_headers) =
+                    handle_connection(&mut stream, &router_clone, peer_addr.ip()).unwrap_or_else(
+                        |err| {
+                            if let (Some(method), Some(path)) = (&err.method, &err.path) {
+                                router_clone
+                                    .log_response(
+                                        err.error_response.status_code,
+                                        path,
+                                        method,
+                                        peer_addr.ip(),
+                                    )
+                                    .unwrap();
+                            }
 
-                        err.into_response()
-                    })
-                    .write_response(&mut stream, self.compression)
+                            (err.into_response(), HashMap::new())
+                        },
+                    );
+
+                let compress = self.compression
+                    && req_headers.iter().any(|(key, value)| {
+                        key.eq_ignore_ascii_case("accept-encoding")
+                            && value.to_ascii_lowercase().contains("gzip")
+                    });
+
+                response
+                    .write_response(&mut stream, compress)
                     .unwrap_or_else(|err| {
                         if let Some(logger) = logger_clone {
                             logger
@@ -270,11 +280,17 @@ fn handle_connection(
     stream: &mut Box<dyn ReadWrite>,
     router: &Arc<Router>,
     peer_addr: IpAddr,
-) -> Result<HttpResponse, ApiError> {
+) -> Result<(HttpResponse, HashMap<String, String>), ApiError> {
     let mut reader = BufReader::new(&mut *stream);
 
     let mut request = String::new();
     let (method, path, headers) = parse_http(&mut reader, &mut request)?;
+
+    //find a better way without converting to owned headers
+    let owned_headers: HashMap<String, String> = headers
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
 
     let mut buffer = Vec::new();
 
@@ -285,13 +301,14 @@ fn handle_connection(
                 .map_err(|err| {
                     ApiError::new_with_html(400, &format!("File upload error: {}", err))
                 })?;
-            return Ok(response);
+            return Ok((response, owned_headers));
         }
         _ => parse_body(&headers, reader, &mut buffer)?,
     };
 
     let response = router.route(path, method, body.as_deref(), peer_addr, &headers)?;
-    Ok(response)
+
+    Ok((response, owned_headers))
 }
 
 fn parse_body<'a>(

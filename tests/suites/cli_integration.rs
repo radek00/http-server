@@ -160,7 +160,29 @@ fn compression_argument_sets_gzip_content_encoding() {
     let server = spawn_server(&["--ip", "127.0.0.1", "--compression"], false);
 
     let response = Client::builder()
-        .no_gzip()
+        .timeout(Duration::from_secs(5))
+        .build()
+        .expect("Failed to build client")
+        .get(server.base_url())
+        .header(ACCEPT_ENCODING, "gzip")
+        .send()
+        .expect("Compressed request failed");
+
+    assert_eq!(response.status().as_u16(), 200);
+    assert_eq!(
+        response
+            .headers()
+            .get("content-encoding")
+            .and_then(|h| h.to_str().ok()),
+        Some("gzip")
+    );
+}
+
+#[test]
+fn compression_argument_only_compresses_when_accept_encoding_is_set() {
+    let server = spawn_server(&["--ip", "127.0.0.1"], false);
+
+    let response = Client::builder()
         .timeout(Duration::from_secs(5))
         .build()
         .expect("Failed to build no-gzip client")
@@ -175,7 +197,7 @@ fn compression_argument_sets_gzip_content_encoding() {
             .headers()
             .get("content-encoding")
             .and_then(|h| h.to_str().ok()),
-        Some("gzip")
+        None
     );
 }
 

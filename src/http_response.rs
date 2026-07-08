@@ -53,76 +53,32 @@ impl HttpResponse {
         });
 
         if let Some(body) = self.body {
-            match body {
-                Body::DownloadStream(file, name) => {
-                    return handle_file_stream(file, Some(name), base_headers, stream, true);
+            return match (body, compress) {
+                (Body::DownloadStream(file, name), _) => {
+                    handle_file_stream(file, Some(name), base_headers, stream, true)
                 }
-                Body::FileStream(file) => {
-                    if compress {
-                        return handle_compressed_file_stream(file, base_headers, stream);
-                    }
-                    return handle_file_stream(file, None, base_headers, stream, false);
+                (Body::FileStream(file), true) => {
+                    handle_compressed_file_stream(file, base_headers, stream)
                 }
-                _ => {}
-            }
-
-            if compress {
-                base_headers.push_str("Content-Encoding: gzip\r\n");
-                base_headers.push_str("Vary: Accept-Encoding\r\n");
-
-                let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-
-                match body {
-                    Body::Text(text) => encoder.write_all(text.as_bytes())?,
-                    Body::Json(json) => encoder.write_all(json.to_string().as_bytes())?,
-                    Body::StaticFile(file, _) => {
-                        encoder.write_all(file)?;
-                        let encoded = encoder.finish()?;
-                        base_headers.push_str(&format!("Content-Length: {}\r\n", encoded.len()));
-                        base_headers.push_str("\r\n");
-                        stream.write_all(base_headers.as_bytes())?;
-                        stream.write_all(&encoded)?;
-                        return Ok(());
-                    }
-                    Body::DownloadStream(_, _) | Body::FileStream(_) => unreachable!(),
+                (Body::FileStream(file), false) => {
+                    handle_file_stream(file, None, base_headers, stream, false)
                 }
-
-                let encoded = encoder.finish()?;
-                base_headers.push_str(&format!(
-                    "Content-Length: {}\r\n\
-                \r\n\
-                ",
-                    encoded.len(),
-                ));
-                stream.write_all(base_headers.as_bytes())?;
-                stream.write_all(&encoded)?;
-            } else {
-                let body = match body {
-                    Body::Text(text) => text.clone(),
-                    Body::Json(json) => json.to_string(),
-                    Body::StaticFile(file, _) => {
-                        base_headers.push_str(&format!("Content-Length: {}\r\n", file.len()));
-                        base_headers.push_str("\r\n");
-                        stream.write_all(base_headers.as_bytes())?;
-                        stream.write_all(file)?;
-                        return Ok(());
-                    }
-                    Body::DownloadStream(file, name) => {
-                        return handle_file_stream(file, Some(name), base_headers, stream, true);
-                    }
-                    Body::FileStream(file) => {
-                        return handle_file_stream(file, None, base_headers, stream, false);
-                    }
-                };
-                base_headers.push_str(&format!(
-                    "Content-Length: {}\r\n\
-                \r\n\
-                {}",
-                    body.len(),
-                    body
-                ));
-                stream.write_all(base_headers.as_bytes())?;
-            }
+                (Body::Text(text), should_compress) => {
+                    write_buffered_body(base_headers, text.as_bytes(), should_compress, stream)
+                }
+                (Body::Json(json), should_compress) => {
+                    let serialized = json.to_string();
+                    write_buffered_body(
+                        base_headers,
+                        serialized.as_bytes(),
+                        should_compress,
+                        stream,
+                    )
+                }
+                (Body::StaticFile(file, _), should_compress) => {
+                    write_buffered_body(base_headers, file, should_compress, stream)
+                }
+            };
         }
 
         Ok(())
@@ -178,6 +134,35 @@ fn handle_compressed_file_stream(
     println!("headers: {}", headers);
     io::copy(&mut reader, &mut encoder)?;
     encoder.finish()?;
+
+    Ok(())
+}
+
+fn write_buffered_body(
+    mut headers: String,
+    body: &[u8],
+    compress: bool,
+    stream: &mut Box<dyn ReadWrite>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    if compress {
+        headers.push_str("Content-Encoding: gzip\r\n");
+        headers.push_str("Vary: Accept-Encoding\r\n");
+
+        let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+        encoder.write_all(body)?;
+        let encoded = encoder.finish()?;
+
+        headers.push_str(&format!("Content-Length: {}\r\n", encoded.len()));
+        headers.push_str("\r\n");
+        stream.write_all(headers.as_bytes())?;
+        stream.write_all(&encoded)?;
+        return Ok(());
+    }
+
+    headers.push_str(&format!("Content-Length: {}\r\n", body.len()));
+    headers.push_str("\r\n");
+    stream.write_all(headers.as_bytes())?;
+    stream.write_all(body)?;
 
     Ok(())
 }
