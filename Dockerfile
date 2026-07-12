@@ -1,5 +1,5 @@
 # Multi-stage build for minimal image size
-FROM rust:alpine3.23 AS builder
+FROM rust:alpine3.24 AS builder
 
 # Install build dependencies
 RUN apk add --no-cache perl make
@@ -18,7 +18,7 @@ COPY src ./src
 RUN cargo build --release
 
 # Runtime stage
-FROM alpine:3.23.3
+FROM alpine:3.24
 
 # Create a non-root user
 RUN addgroup -g 1000 appuser && \
