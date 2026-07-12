@@ -22,15 +22,15 @@ services:
     volumes:
       # Mount local directory to serve and upload files (read-write)
       # Server always runs from /srv - control file location by mounting to /srv
-      - ./testData/public:/srv
+      #- ./tests/data/public:/srv
       
       # Mount custom index directory (automatically uses /index/index.html if present)
-      #- ./testData/public:/index:ro
+      #- ./tests/data/public:/index:ro
       # Mount if you want to use a different name than index.html
-      #- ./testData/public/custom_index.html:/index/index.html:ro
+      #- ./tests/data/public/custom_index.html:/index/index.html:ro
       
       # Mount certificates if using TLS (uncomment if needed)
-      - ./testData/certs:/certs:ro
+      #- ./tests/data/certs:/certs:ro
     
     restart: unless-stopped
     
