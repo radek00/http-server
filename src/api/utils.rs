@@ -91,7 +91,8 @@ pub fn list_directory(path: &str) -> Result<serde_json::Value, ApiError> {
 
     for path in directory_contents {
         let path = path?;
-        let system_time: DateTime<Utc> = path.metadata()?.modified()?.into();
+        let path_metadata = path.metadata()?;
+        let system_time: DateTime<Utc> = path_metadata.modified()?.into();
 
         let file = Files {
             name: path.file_name().into_string().unwrap(),
@@ -107,7 +108,7 @@ pub fn list_directory(path: &str) -> Result<serde_json::Value, ApiError> {
                 FileType::File
             },
             last_modified: system_time.format("%d/%m/%Y %T").to_string(),
-            size: human_bytes(path.metadata()?.len() as f64),
+            size: human_bytes(path_metadata.len() as f64),
         };
         directory_response.files.push(file);
     }
